@@ -1,4 +1,7 @@
 #include <WinSerialPort.hpp>
+#include <Exception.hpp>
+#include <Util.hpp>
+#include <sstream>
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -39,7 +42,7 @@ namespace pybind {
 
 using namespace pybind;
 
-WinSerialPort::WinSerialPort(const std::wstring& portName, const SerialPortOptions& options): options(options) {
+WinSerialPort::WinSerialPort(const std::wstring& portName, const SerialPortOptions& options): portName(portName), options(options) {
     serial = new win::SerialPort(portName);
 
     // 預設註冊一個 ON_DATA listener
@@ -58,10 +61,26 @@ WinSerialPort::~WinSerialPort() {
     }
 }
 
+
 void WinSerialPort::open() {
-    serial->open();
-    serial->configure(options.baudrate, options.bytesize, options.parity, options.stopbits);
-    serial->setTimeouts(50, options.read_timeout, options.write_timeout);
+    bool success = serial->open();
+
+    std::ostringstream exMessage;
+    exMessage << "Open " << common::wstring_to_string(portName) << " Failure.";
+
+    if(!success) {
+        throw OSException(exMessage.str());
+    }
+
+    success = serial->configure(options.baudrate, options.bytesize, options.parity, options.stopbits)
+        && serial->setTimeouts(50, options.read_timeout, options.write_timeout);
+
+    if(!success) {
+        close();
+
+        throw OSException(exMessage.str());
+    }
+    
     serial->startAsyncRead();
 }
 

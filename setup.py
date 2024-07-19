@@ -28,7 +28,7 @@ ext_modules = [
         ],
         language='c++',
         extra_compile_args=['/std:c++17'] if sys.platform == 'win32' else ['-std=c++17'],
-        extra_link_args=['-lws2_32'] if sys.platform == 'win32' else [],
+        extra_link_args=[],
     ),
 ]
 

@@ -97,14 +97,14 @@ void WinSerialPort::set_data_callback(const std::function<void(const pybind11::b
     data_callback = callback;
 }
 
+namespace py = pybind11;
+
 void WinSerialPort::call(const std::vector<std::any>& args) {
     if(data_callback) {
         auto& data = std::any_cast<const std::vector<char>&>(args[0]);
-        data_callback(pybind11::bytes(data.data(), data.size()));
+        data_callback(py::bytes(data.data(), data.size()));
     }
 }
-
-namespace py = pybind11;
 
 PYBIND11_MODULE(async_pyserial_core, m) {
     py::class_<pybind::SerialPortOptions>(m, "SerialPortOptions")

@@ -1,4 +1,4 @@
-#include <Event.hpp>
+#include <common/event.h>
 
 #include <iostream>
 
@@ -6,7 +6,7 @@
 
 #include <any>
 
-using namespace common;
+using namespace async_pyserial::common;
 
 int main() {
 

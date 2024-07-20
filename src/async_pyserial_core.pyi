@@ -1,6 +1,6 @@
 from __future__ import annotations
 __all__ = ['SerialPort', 'SerialPortOptions']
-class WinSerialPort:
+class SerialPort:
     def __init__(self, arg0: str, arg1: SerialPortOptions) -> None:
         ...
     def close(self) -> None:

@@ -1,6 +1,6 @@
-#include <Event.hpp>
+#include <common/event.h>
 
-using namespace common;
+using namespace async_pyserial::common;
 
 
 ListenerHandle EventEmitter::addListener(EventType eventType, std::function<void(const std::vector<std::any>&)> listener) {

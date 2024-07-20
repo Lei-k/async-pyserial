@@ -12,10 +12,10 @@ sys_platform = sys.platform
 
 if sys_platform  == 'win32':
             
-    from win_serialport import SerialPort
+    from native_serialport import SerialPort
     
 elif sys_platform == 'linux':
-    raise PlatformNotSupported()
+    from native_serialport import SerialPort
 elif sys_platform == 'darwin':
     raise PlatformNotSupported()
 else:

@@ -1,4 +1,4 @@
-from common import SerialPortOptions, SerialPortEvent, SerialPortBase, PlatformNotSupported
+from common import SerialPortOptions, SerialPortEvent, SerialPortBase
 
 import async_pyserial_core
 
@@ -7,7 +7,7 @@ class SerialPort(SerialPortBase):
         
         super().__init__(portName, options)
         
-        self.internal = async_pyserial_core.WinSerialPort(portName, self.internal_options)
+        self.internal = async_pyserial_core.SerialPort(portName, self.internal_options)
             
         def on_data(data):
             self.emit(SerialPortEvent.ON_DATA, data)

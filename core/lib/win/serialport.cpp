@@ -1,14 +1,18 @@
-#include <WinSerialPort.hpp>
+#ifdef Win32
+
+#include <win32/serialport.h>
+
+#include <sstream>
 
 #include <iostream>
 
-using namespace win;
+using namespace async_pyserial;
+using namespace async_pyserial::internal;
 
-SerialPort::SerialPort(const std::wstring& portName)
-    : common::EventEmitter(), portName(portName), hSerial(INVALID_HANDLE_VALUE), hCompletionPort(NULL), running(false) {}
+SerialPort::SerialPort(const std::wstring& portName, const base::SerialPortOptions& options)
+    : common::EventEmitter(), portName(portName), hSerial(INVALID_HANDLE_VALUE), options(options), hCompletionPort(NULL), _is_open(false), running(false) {}
 
 SerialPort::~SerialPort() {
-    stopAsyncRead();
     close();
 }
 
@@ -21,7 +25,7 @@ struct CustomOverlapped : public OVERLAPPED {
     OperationType operationType;
 };
 
-bool SerialPort::open() {
+void SerialPort::open() {
     hSerial = CreateFileW(
         portName.c_str(),
         GENERIC_READ | GENERIC_WRITE,
@@ -32,31 +36,64 @@ bool SerialPort::open() {
         0
     );
 
+    std::ostringstream exMessage;
+
     if (hSerial == INVALID_HANDLE_VALUE) {
         std::cerr << "Error opening serial port" << std::endl;
-        return false;
+
+        exMessage << "Error opening serial port " << common::wstring_to_string(portName);
+
+        throw common::SerialPortException(exMessage.str());
     }
 
     hCompletionPort = CreateIoCompletionPort(hSerial, NULL, 0, 0);
     if (hCompletionPort == NULL) {
-        std::cerr << "Error creating IO completion port" << std::endl;
+        exMessage << "Error creating IO completion port";
+
         CloseHandle(hSerial);
         hSerial = INVALID_HANDLE_VALUE;
-        return false;
+
+        throw common::SerialPortException(exMessage.str());
     }
 
-    return true;
+    success = configure(options.baudrate, options.bytesize, options.parity, options.stopbits) && 
+        setTimeouts(50, options.read_timeout, options.write_timeout);
+
+    if (!success)
+    {
+        exMessage << "Error configure" << common::wstring_to_string(portName);
+
+        CloseHandle(hSerial);
+        hSerial = INVALID_HANDLE_VALUE;
+
+        throw common::SerialPortException(exMessage.str());
+    }
+
+    startAsyncRead();
+
+    _is_open = true;
+}
+
+bool SerialPort::is_open() {
+    return _is_open;
 }
 
 void SerialPort::close() {
+    if(!_is_open) return;
+
+    stopAsyncRead()
+
     if (hSerial != INVALID_HANDLE_VALUE) {
         CloseHandle(hSerial);
         hSerial = INVALID_HANDLE_VALUE;
     }
+
     if (hCompletionPort != NULL) {
         CloseHandle(hCompletionPort);
         hCompletionPort = NULL;
     }
+
+    _is_open = false;
 }
 
 bool SerialPort::configure(DWORD baudRate, BYTE byteSize, BYTE stopBits, BYTE parity) {
@@ -95,12 +132,11 @@ bool SerialPort::setTimeouts(DWORD readInterval, DWORD readTotal, DWORD writeTot
     return true;
 }
 
-bool SerialPort::startAsyncRead() {
-    if (running) return false;
+void SerialPort::startAsyncRead() {
+    if (running) return;
 
     running = true;
     readThread = std::thread(&SerialPort::asyncReadThread, this);
-    return true;
 }
 
 void SerialPort::stopAsyncRead() {
@@ -162,7 +198,7 @@ void SerialPort::asyncReadThread() {
     }
 }
 
-bool SerialPort::write(const std::string& data) {
+void SerialPort::write(const std::string& data) {
     auto* overlapped = new CustomOverlapped();
     ZeroMemory(overlapped, sizeof(CustomOverlapped));
     overlapped->hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
@@ -171,41 +207,40 @@ bool SerialPort::write(const std::string& data) {
     DWORD bytesWritten = 0;
     if (!WriteFile(hSerial, data.c_str(), data.size(), &bytesWritten, overlapped)) {
         if (GetLastError() != ERROR_IO_PENDING) {
-            std::wcerr << L"Error writing to serial port" << std::endl;
             CloseHandle(overlapped->hEvent);
             delete overlapped;
-            return false;
+
+            throw common::SerialPortException("Error writing to serial port");
         }
         
         DWORD numberOfBytesTransferred;
         if (!GetOverlappedResult(hSerial, overlapped, &numberOfBytesTransferred, TRUE)) {
-            std::wcerr << L"Error getting overlapped result" << std::endl;
             CloseHandle(overlapped->hEvent);
             delete overlapped;
-            return false;
+
+            throw common::SerialPortException("Error getting overlapped result");
         }
         bytesWritten = numberOfBytesTransferred;
     }
 
     CloseHandle(overlapped->hEvent);
     delete overlapped;
-    return bytesWritten == data.size();
+
+    if(bytesWritten != data.size()) {
+        throw common::SerialPortException("Write Error");
+    }
 }
 
 int main() {
-    SerialPort serial(L"COM2");
+    base::SerialPortOptions options;
+    options.baudrate = CBR_9600;
+    options.bytesize = 8;
+    options.stopbits = ONESTOPBIT;
+    options.parity = NOPARITY;
+    options.read_timeout = 50;
+    options.write_timeout = 50;
 
-    if (!serial.open()) {
-        return 1;
-    }
-
-    if (!serial.configure(CBR_9600, 8, ONESTOPBIT, NOPARITY)) {
-        return 1;
-    }
-
-    if (!serial.setTimeouts(50, 50, 50)) {
-        return 1;
-    }
+    SerialPort serial(L"COM2", options);
 
     serial.on(SerialPortEvent::ON_DATA, [](const std::vector<std::any>& args) {
         auto& data = std::any_cast<const std::vector<char>&>(args[0]);
@@ -213,9 +248,7 @@ int main() {
         std::cout << str << std::endl;
     });
 
-    if (!serial.startAsyncRead()) {
-        return 1;
-    }
+    serial.open();
 
     std::string input;
     while (true) {
@@ -227,6 +260,7 @@ int main() {
         }
     }
 
-    serial.stopAsyncRead();
     return 0;
 }
+
+#endif

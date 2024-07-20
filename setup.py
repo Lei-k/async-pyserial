@@ -4,6 +4,15 @@ import glob
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 
+if sys.platform.startswith('win32'):
+    os_specific_macros = [('Win32', None)]
+elif sys.platform.startswith('darwin'):
+    os_specific_macros = [('MACOS', None)]
+elif sys.platform.startswith('linux'):
+    os_specific_macros = [('LINUX', None)]
+else:
+    raise RuntimeError("Unsupported platform")
+
 def get_pybind_include(user=False):
     """Helper class to determine the pybind11 include path
 
@@ -21,13 +30,14 @@ ext_modules = [
         'async_pyserial_core',
         sources,
         include_dirs=[
-            'core/include/common',
-            'core/include/win',
+            'core/include',
+            'core/include',
             get_pybind_include(),
             get_pybind_include(user=True)
         ],
         language='c++',
         extra_compile_args=['/std:c++17'] if sys.platform == 'win32' else ['-std=c++17'],
+        define_macros=os_specific_macros,
         extra_link_args=[],
     ),
 ]

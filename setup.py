@@ -23,15 +23,14 @@ def get_pybind_include(user=False):
     import pybind11
     return pybind11.get_include(user=user)
 
-sources = glob.glob('core/lib/**/*.cpp', recursive=True)
+sources = glob.glob('./core/lib/**/*.cpp', recursive=True)
 
 ext_modules = [
     Extension(
         'async_pyserial.async_pyserial_core',
         sources,
         include_dirs=[
-            'core/include',
-            'core/include',
+            './core/include',
             get_pybind_include(),
             get_pybind_include(user=True)
         ],
@@ -51,7 +50,7 @@ setup(
     packages=['async_pyserial'],
     long_description='',
     ext_modules=ext_modules,
-    install_requires=['pybind11>=2.6.1'],
+    install_requires=[],
     cmdclass={'build_ext': build_ext},
     zip_safe=False,
 )

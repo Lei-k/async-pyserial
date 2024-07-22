@@ -7,17 +7,25 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-setuptools = "^71.0.1"
 
 [project]
 name = "async_pyserial"
 version = "0.1.0"
 description = "Python bindings for a C++ serial port library"
 authors = [
-    {name = "Your Name", email = "your.email@example.com"}
+    {name = "Neil Lei", email = "qwe17235@gmail.com"}
 ]
 dependencies = []
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
 
+[project.urls]
+Homepage = "https://github.com/Lei-k/async-pyserial/tree/main"
+Issues = "https://github.com/Lei-k/async-pyserial/issues"
 
 [tool.poetry.group.dev.dependencies]
 pybind11 = "^2.13.1"
@@ -27,8 +35,8 @@ setuptools = "^71.0.1"
 wheel = "^0.43.0"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=71.0.1", "pybind11>=2.13.1", "wheel>=0.43.0"]
+build-backend = "setuptools.build_meta"
 
 [virtualenvs]
 in-project = true

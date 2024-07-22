@@ -4,6 +4,10 @@ import glob
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 
+with open("README.rst", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
+    
+
 if sys.platform.startswith('win32'):
     os_specific_macros = [('Win32', None)]
 elif sys.platform.startswith('darwin'):
@@ -50,6 +54,7 @@ setup(
     packages=['async_pyserial'],
     ext_modules=ext_modules,
     install_requires=[],
+    long_description=long_description,
     cmdclass={'build_ext': build_ext},
     zip_safe=False,
 )

@@ -16,6 +16,7 @@ authors = [
     {name = "Neil Lei", email = "qwe17235@gmail.com"}
 ]
 dependencies = []
+readme = "README.rst"
 requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Python :: 3",

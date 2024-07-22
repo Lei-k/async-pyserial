@@ -20,6 +20,20 @@ namespace async_pyserial
         private:
             std::string msg;
         };
+
+        class ConvertException: public std::exception
+        {
+        public:
+            explicit ConvertException(const std::string &message) : msg(message) {}
+
+            virtual const char *what() const noexcept override
+            {
+                return msg.c_str();
+            }
+
+        private:
+            std::string msg;
+        };
         
         class OSException : public std::exception
         {

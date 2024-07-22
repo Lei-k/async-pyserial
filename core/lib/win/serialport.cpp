@@ -175,7 +175,7 @@ void SerialPort::asyncReadThread() {
             auto* customOverlapped = reinterpret_cast<CustomOverlapped*>(lpOverlapped);
 
             if (customOverlapped->operationType == OperationType::Read && numberOfBytesTransferred > 0) {
-                std::vector<char> buffer2send(buffer, buffer + numberOfBytesTransferred);
+                std::string buffer2send(buffer, buffer + numberOfBytesTransferred);
 
                 std::vector<std::any> emitArgs = { buffer2send };
 

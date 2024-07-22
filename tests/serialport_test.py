@@ -10,7 +10,7 @@ if __name__ == "__main__":
     
     def on_data(data):
         
-        print(data)
+        print(len(data), data)
     
     options = SerialPortOptions()
     options.baudrate = 9600
@@ -19,6 +19,8 @@ if __name__ == "__main__":
     options.parity = 0
     options.write_timeout = 50
     options.read_timeout = 50
+
+    print(args[0])
 
     serial = SerialPort(args[0], options)
     serial.on(SerialPortEvent.ON_DATA, on_data)

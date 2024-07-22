@@ -96,10 +96,24 @@ namespace py = pybind11;
 
 void SerialPort::call(const std::vector<std::any> &args)
 {
+    if (args.empty()) {
+        return;
+    }
+    
     if (data_callback)
     {
-        auto &data = std::any_cast<const std::vector<char> &>(args[0]);
-        data_callback(py::bytes(data.data(), data.size()));
+        try {
+            auto &data = std::any_cast<const std::string &>(args[0]);
+
+            py::gil_scoped_acquire gil; // acquire gil
+
+            data_callback(py::bytes(data.data(), data.size()));
+        } catch(const std::bad_any_cast& e) {
+            std::cerr << "Bad any_cast: " << e.what() << std::endl;
+        } catch(const std::exception& e) {
+            std::cerr << "Exception: " << e.what() << std::endl;
+        }
+        
     }
 }
 

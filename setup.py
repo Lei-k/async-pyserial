@@ -48,7 +48,6 @@ setup(
     author_email='qwe17235@gmail.com',
     description='Python bindings for a C++ serial port library',
     packages=['async_pyserial'],
-    long_description='',
     ext_modules=ext_modules,
     install_requires=[],
     cmdclass={'build_ext': build_ext},

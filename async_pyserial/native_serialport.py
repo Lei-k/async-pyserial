@@ -1,6 +1,6 @@
-from .common import SerialPortOptions, SerialPortEvent, SerialPortBase
+from async_pyserial.common import SerialPortOptions, SerialPortEvent, SerialPortBase
 
-import async_pyserial_core
+from async_pyserial import async_pyserial_core
 
 class SerialPort(SerialPortBase):
     def __init__(self, portName: str, options: SerialPortOptions) -> None:

@@ -1,4 +1,4 @@
-import async_pyserial_core
+from async_pyserial import async_pyserial_core
 
 class EventEmitter:
     def __init__(self) -> None:

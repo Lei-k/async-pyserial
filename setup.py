@@ -27,7 +27,7 @@ sources = glob.glob('core/lib/**/*.cpp', recursive=True)
 
 ext_modules = [
     Extension(
-        'async_pyserial_core',
+        'async_pyserial.async_pyserial_core',
         sources,
         include_dirs=[
             'core/include',

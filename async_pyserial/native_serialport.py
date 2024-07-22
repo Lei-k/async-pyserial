@@ -1,4 +1,4 @@
-from common import SerialPortOptions, SerialPortEvent, SerialPortBase
+from .common import SerialPortOptions, SerialPortEvent, SerialPortBase
 
 import async_pyserial_core
 

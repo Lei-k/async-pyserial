@@ -48,6 +48,7 @@ setup(
     author='Neil Lei',
     author_email='qwe17235@gmail.com',
     description='Python bindings for a C++ serial port library',
+    packages=['async_pyserial'],
     long_description='',
     ext_modules=ext_modules,
     install_requires=['pybind11>=2.6.1'],

@@ -30,13 +30,5 @@ wheel = "^0.43.0"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.setuptools.package-dir]
-"" = "src"
-
-[tool.setuptools.packages.find]
-where = [
-    "src",
-]
-
 [virtualenvs]
 in-project = true

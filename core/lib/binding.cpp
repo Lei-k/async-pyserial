@@ -12,7 +12,6 @@
 
 #include <base/serialport.h>
 #include <common/exception.h>
-#include <common/util.h>
 #include <any>
 
 #include <pybind11/pybind11.h>

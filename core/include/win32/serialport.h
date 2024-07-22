@@ -10,8 +10,10 @@
 #include <thread>
 
 #include <base/serialport.h>
+
 #include <common/event.h>
 #include <common/exception.h>
+#include <common/util.h>
 
 namespace async_pyserial
 {

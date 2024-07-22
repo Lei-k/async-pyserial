@@ -56,7 +56,7 @@ void SerialPort::open() {
         throw common::SerialPortException(exMessage.str());
     }
 
-    success = configure(options.baudrate, options.bytesize, options.parity, options.stopbits) && 
+    bool success = configure(options.baudrate, options.bytesize, options.parity, options.stopbits) && 
         setTimeouts(50, options.read_timeout, options.write_timeout);
 
     if (!success)
@@ -81,7 +81,7 @@ bool SerialPort::is_open() {
 void SerialPort::close() {
     if(!_is_open) return;
 
-    stopAsyncRead()
+    stopAsyncRead();
 
     if (hSerial != INVALID_HANDLE_VALUE) {
         CloseHandle(hSerial);
@@ -255,9 +255,7 @@ int main() {
         std::getline(std::cin, input);
         if (input == "exit") break;
 
-        if (!serial.write(input)) {
-            std::cerr << "Failed to write data to serial port" << std::endl;
-        }
+        serial.write(input);
     }
 
     return 0;

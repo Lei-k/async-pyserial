@@ -39,7 +39,7 @@ jobs:
     - name: Publish package
       uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
       with:
-        user: __token__
+        user: async-pyserial-upload-token
         password: ${{ secrets.PYPI_API_TOKEN }}
 
   Run-on-Windows:
@@ -58,11 +58,12 @@ jobs:
         pip install poetry
         poetry install
         pip install build
+        pip install twine
     - name: Build package
       run: python -m build
     - name: Publish package
       env:
-          TWINE_USERNAME: __token__
+          TWINE_USERNAME: async-pyserial-upload-token
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
         python -m twine upload dist/*

@@ -4,6 +4,12 @@
 
 #endif
 
+#ifdef Win32
+
+#include <win32/serialport.h>
+
+#endif
+
 #include <base/serialport.h>
 
 using namespace async_pyserial;

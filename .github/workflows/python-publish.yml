@@ -39,7 +39,7 @@ jobs:
     - name: Publish package
       uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
       with:
-        user: qwe17235
+        user: __token__
         password: ${{ secrets.PYPI_API_TOKEN }}
 
   Run-on-Windows:
@@ -63,7 +63,7 @@ jobs:
       run: python -m build
     - name: Publish package
       env:
-          TWINE_USERNAME: qwe17235
+          TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
         python -m twine upload dist/*

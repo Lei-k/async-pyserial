@@ -5,3 +5,9 @@ dist
 *.egg-info
 *.pyc
 *.pypirc
+*.coverage*
+htmlcov
+*.so
+*.pyd
+*.pyc
+__pycache__

@@ -28,7 +28,7 @@ classifiers = [
 Homepage = "https://github.com/Lei-k/async-pyserial/tree/main"
 Issues = "https://github.com/Lei-k/async-pyserial/issues"
 
-[tool.poetry.group.dev.dependencies]
+[tool.poetry.dev-dependencies]
 pybind11 = "^2.13.1"
 mypy = "^1.10.1"
 pybind11-stubgen = "^2.5.1"

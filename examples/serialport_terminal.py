@@ -1,28 +1,28 @@
 if __name__ == "__main__":
     from async_pyserial import SerialPortOptions, SerialPort, SerialPortEvent
+
+    import argparse
     
-    import sys
+    parser = argparse.ArgumentParser(description='Async Serial Port Communication Tool')
+    parser.add_argument('port', type=str, help='The COM port to use (e.g., COM3 or /dev/ttyUSB0)')
+    parser.add_argument('--baudrate', type=int, default=9600, help='Baud rate (default: 9600)')
+    parser.add_argument('--bytesize', type=int, choices=[5, 6, 7, 8], default=8, help='Number of data bits (default: 8)')
+    parser.add_argument('--stopbits', type=int, choices=[1, 1.5, 2], default=1, help='Number of stop bits (default: 1)')
+    parser.add_argument('--parity', type=int, choices=[0, 1, 2, 3, 4], default=0, help='Parity (0: None, 1: Odd, 2: Even, 3: Mark, 4: Space, default: 0)')
     
-    args = sys.argv[1:]
-    
-    if len(args) < 1:
-        raise Exception('please give a comport')
+    args = parser.parse_args()
     
     def on_data(data):
         
         print(len(data), data)
     
     options = SerialPortOptions()
-    options.baudrate = 9600
-    options.bytesize = 8
-    options.stopbits = 1
-    options.parity = 0
-    options.write_timeout = 50
-    options.read_timeout = 50
+    options.baudrate = args.baudrate
+    options.bytesize = args.bytesize
+    options.stopbits = args.stopbits
+    options.parity = args.parity
 
-    print(args[0])
-
-    serial = SerialPort(args[0], options)
+    serial = SerialPort(args.port, options)
     serial.on(SerialPortEvent.ON_DATA, on_data)
     serial.open()
     

@@ -17,7 +17,9 @@ if sys_platform  == 'win32':
 elif sys_platform == 'linux':
     from async_pyserial.native_serialport import SerialPort
 elif sys_platform == 'darwin':
-    raise PlatformNotSupported()
+    from async_pyserial.native_serialport import SerialPort
+elif 'bsd' in sys_platform.lower():
+    from async_pyserial.native_serialport import SerialPort
 else:
     raise PlatformNotSupported()
 

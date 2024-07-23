@@ -11,9 +11,11 @@ with open("README.rst", "r", encoding="utf-8") as fh:
 if sys.platform.startswith('win32'):
     os_specific_macros = [('Win32', None)]
 elif sys.platform.startswith('darwin'):
-    os_specific_macros = [('MACOS', None)]
+    os_specific_macros = [('__darwin__', None)]
 elif sys.platform.startswith('linux'):
     os_specific_macros = [('LINUX', None)]
+elif 'bsd' in sys.platform.system().lower():
+    os_specific_macros = [('__bsd__', None)]
 else:
     raise RuntimeError("Unsupported platform")
 
@@ -47,7 +49,7 @@ ext_modules = [
 
 setup(
     name='async_pyserial',
-    version='0.1.1',
+    version='0.1.2',
     author='Neil Lei',
     author_email='qwe17235@gmail.com',
     description='Python bindings for a C++ serial port library',

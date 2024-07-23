@@ -1,5 +1,6 @@
-include core/include/win32/serialport.h
 include core/include/base/*
 include core/include/common/*
 include core/include/linux/*
 include core/include/win32/*
+include core/include/darwin/*
+include core/include/bsd/*

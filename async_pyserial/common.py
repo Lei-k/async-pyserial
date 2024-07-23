@@ -1,5 +1,7 @@
 from async_pyserial import async_pyserial_core
 
+__all__ = ["EventEmitter", "PlatformNotSupported", "SerialPortOptions", "SerialPortEvent", "SerialPortBase"]
+
 class EventEmitter:
     def __init__(self) -> None:
         self.listeners: dict[str, list] = {}

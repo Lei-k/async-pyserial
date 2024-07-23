@@ -12,52 +12,62 @@ Features
 
 Installation
 ------------
-You can install the `async-pyserial` package using `poetry`:
+You can install the `async-pyserial` package using either `poetry` or `pip`.
+
+### Using Poetry
 
 1. Install `poetry` if you haven't already:
 
-    .. code-block:: shell
-
-        curl -sSL https://install.python-poetry.org | python3 -
+    ```sh
+    curl -sSL https://install.python-poetry.org | python3 -
+    ```
 
 2. Add `async-pyserial` to your project:
 
-    .. code-block:: shell
+    ```sh
+    poetry add async-pyserial
+    ```
 
-        poetry add async-pyserial
+### Using pip
+
+1. Install the package from PyPI:
+
+    ```sh
+    pip install async-pyserial
+    ```
 
 ### FreeBSD Installation
 For FreeBSD, you need to build the package manually:
 
 1. Clone the repository:
 
-    .. code-block:: shell
-
-        git clone https://github.com/Lei-k/async-pyserial.git
+    ```sh
+    git clone https://github.com/Lei-k/async-pyserial.git
+    ```
 
 2. Navigate to the project directory:
 
-    .. code-block:: shell
-
-        cd async-pyserial
+    ```sh
+    cd async-pyserial
+    ```
 
 3. Install the dependencies using `poetry`:
 
-    .. code-block:: shell
-
-        poetry install
+    ```sh
+    poetry install
+    ```
 
 4. Build the package:
 
-    .. code-block:: shell
-
-        poetry build
+    ```sh
+    python -m build
+    ```
 
 5. Install the package:
 
-    .. code-block:: shell
-
-        pip install dist/*.whl
+    ```sh
+    pip install dist/*.whl
+    ```
 
 Usage
 -----
@@ -75,8 +85,6 @@ Here's a simple example of how to use `async-pyserial`:
     options.bytesize = 8
     options.stopbits = 1
     options.parity = 0
-    options.read_timeout = 50
-    options.write_timeout = 50
 
     serial_port = SerialPort('/dev/ttyUSB0', options)
     serial_port.on(SerialPortEvent.ON_DATA, on_data)

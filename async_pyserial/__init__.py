@@ -6,7 +6,7 @@ __version__ = '3.8'
 
 VERSION = __version__
 
-__all__ = ["SerialPort", "SerialPortOptions", "SerialPortEvent"]
+__all__ = ["SerialPort", "SerialPortOptions", "SerialPortEvent", "SerialPortParity"]
 
 sys_platform = sys.platform
 
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     options.baudrate = 9600
     options.bytesize = 8
     options.stopbits = 1
-    options.parity = 0
+    options.parity = SerialPortParity.NONE
     options.write_timeout = 50
     options.read_timeout = 50
 

@@ -75,7 +75,7 @@ Here's a simple example of how to use `async-pyserial`:
 
 .. code-block:: python
 
-    from async_pyserial import SerialPort, SerialPortOptions, SerialPortEvent
+    from async_pyserial import SerialPort, SerialPortOptions, SerialPortEvent, SerialPortParity
 
     def on_data(data):
         print(f"Received: {data}")
@@ -84,7 +84,7 @@ Here's a simple example of how to use `async-pyserial`:
     options.baudrate = 9600
     options.bytesize = 8
     options.stopbits = 1
-    options.parity = 0
+    options.parity = SerialPortParity.NONE # NONE, ODD, EVEN
 
     serial_port = SerialPort('/dev/ttyUSB0', options)
     serial_port.on(SerialPortEvent.ON_DATA, on_data)

@@ -10,6 +10,19 @@
 
 #endif
 
+#ifdef __darwin__
+
+#include <darwin/serialport.h>
+
+#endif
+
+#ifdef __bsd__
+
+#include <bsd/serialport.h>
+
+#endif
+
+#include <iostream>
 #include <base/serialport.h>
 #include <common/exception.h>
 #include <any>

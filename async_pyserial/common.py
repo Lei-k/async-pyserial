@@ -1,7 +1,5 @@
 from async_pyserial import async_pyserial_core
 
-__all__ = ["EventEmitter", "PlatformNotSupported", "SerialPortOptions", "SerialPortEvent", "SerialPortBase"]
-
 class EventEmitter:
     def __init__(self) -> None:
         self.listeners: dict[str, list] = {}
@@ -36,6 +34,11 @@ class SerialPortOptions:
 
 class SerialPortEvent:
     ON_DATA = 'data'
+    
+class SerialPortParity:
+    NONE = 0
+    ODD = 1
+    EVEN = 2
         
 class SerialPortBase(EventEmitter):
     def __init__(self, portName: str, options: SerialPortOptions) -> None:

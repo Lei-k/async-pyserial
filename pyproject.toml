@@ -4,7 +4,6 @@ version = "0.1.1"
 description = "Python bindings for a C++ serial port library"
 authors = ["Neil Lei <qwe17235@gmail.com>"]
 readme = "README.rst"
-build = "python -m build"
 
 [tool.poetry.dependencies]
 python = "^3.10"

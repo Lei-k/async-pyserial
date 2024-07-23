@@ -32,14 +32,14 @@ if __name__ == "__main__":
             if data_to_send.lower() == 'exit':
                 break
             
-            size = 5 * 1024
+            size = 10 * 1024
 
             # # 生成指定大小的字节对象
             large_bytes = bytes([42] * size)
             
-            #serial.write(large_bytes)
+            serial.write(large_bytes)
             
-            serial.write(data_to_send.encode('utf-8'))
+            #serial.write(data_to_send.encode('utf-8'))
     except KeyboardInterrupt:
         pass
     except Exception as ex:

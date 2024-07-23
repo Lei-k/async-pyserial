@@ -51,6 +51,8 @@ namespace async_pyserial
 using namespace async_pyserial;
 using namespace async_pyserial::pybind;
 
+namespace py = pybind11;
+
 SerialPort::SerialPort(const std::wstring &portName, const base::SerialPortOptions &options) : portName(portName), options(options)
 {
     serial = new internal::SerialPort(portName, options);
@@ -74,16 +76,22 @@ SerialPort::~SerialPort()
 
 void SerialPort::open()
 {
+    py::gil_scoped_release release;
+    
     serial->open();
 }
 
 void SerialPort::close()
 {
+    py::gil_scoped_release release;
+
     serial->close();
 }
 
 void SerialPort::write(const std::string &data)
 {
+    py::gil_scoped_release release;
+
     serial->write(data);
 }
 
@@ -91,8 +99,6 @@ void SerialPort::set_data_callback(const std::function<void(const pybind11::byte
 {
     data_callback = callback;
 }
-
-namespace py = pybind11;
 
 void SerialPort::call(const std::vector<std::any> &args)
 {

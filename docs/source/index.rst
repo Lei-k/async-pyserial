@@ -4,7 +4,7 @@
    contain the root `toctree` directive.
 
 Async PySerial
-============================
+==============
 
 Welcome to the Async PySerial documentation!
 --------------------------------------------
@@ -18,6 +18,12 @@ Features
 - Blocking write operations.
 - Cross-platform support for Windows, Linux, macOS, and FreeBSD.
 - Event-driven architecture for handling data events.
+
+Links
+-----
+
+- `GitHub repository <https://github.com/Lei-k/async-pyserial>`_
+- `PyPI page <https://pypi.org/project/async-pyserial/>`_
 
 Installation
 ------------
@@ -150,7 +156,6 @@ Platform Support
 
 Supports Windows, Linux, macOS, and FreeBSD.
 
-
 License
 -------
 
@@ -160,7 +165,6 @@ Contact
 -------
 
 If you have any questions or need help, please contact the project maintainer: Neil Lei (qwe17235@gmail.com)
-
 
 Indices and tables
 ------------------

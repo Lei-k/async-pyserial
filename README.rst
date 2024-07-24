@@ -23,7 +23,7 @@ Features
 Links
 -----
 
-- `Documentation: <https://github.com/Lei-k/async-pyserial>`_
+- `Documentation: <https://lei-k.github.io/async-pyserial/>`_
 - `PyPI page: <https://pypi.org/project/async-pyserial/>`_
 
 Installation

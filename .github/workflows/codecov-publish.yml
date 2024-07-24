@@ -25,9 +25,12 @@ jobs:
         pip install poetry
         poetry install
         pip pytest pytest-cov codecov
+    - name: Build Extensions
+      run: |
+        python setup.py build_ext --inplace
     - name: Run tests with coverage
       run: |
-        poetry run pytest --cov=async_pyserial --cov-report=xml --cov-report=term
+        pytest --cov=async_pyserial --cov-report=xml --cov-report=term
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v2
       with:

@@ -24,7 +24,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install poetry
         poetry export -f requirements.txt --output requirements.txt --dev --without-hashes
-        pip -r requirements.txt
+        pip install -r requirements.txt
     - name: Build Extensions
       run: |
         python setup.py build_ext --inplace

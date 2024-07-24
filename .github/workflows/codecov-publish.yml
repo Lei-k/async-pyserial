@@ -24,7 +24,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install poetry
         poetry install
-        pip pytest-cov codecov
+        pip pytest pytest-cov codecov
     - name: Run tests with coverage
       run: |
         poetry run pytest --cov=async_pyserial --cov-report=xml --cov-report=term

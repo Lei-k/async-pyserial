@@ -2,10 +2,10 @@ ASYNC PYSERIAL
 ===============
 
 .. image:: https://github.com/Lei-k/async-pyserial/actions/workflows/python-publish.yml/badge.svg
-   :target: https://github.com/Lei-k/async-pyserial/actions/workflows/python-publish.yml
+   :target: https://pypi.org/project/async-pyserial/
 
 .. image:: https://github.com/Lei-k/async-pyserial/actions/workflows/docs-publish.yml/badge.svg
-   :target: https://github.com/Lei-k/async-pyserial/actions/workflows/docs-publish.yml
+   :target: https://lei-k.github.io/async-pyserial/
 
 .. image:: https://codecov.io/gh/Lei-k/async-pyserial/branch/main/graph/badge.svg
    :target: https://codecov.io/gh/Lei-k/async-pyserial
@@ -19,6 +19,12 @@ Features
 - Blocking write operations.
 - Cross-platform support for Windows, Linux, macOS, and FreeBSD.
 - Event-driven architecture for handling data events.
+
+Links
+-----
+
+- `Documentation: <https://github.com/Lei-k/async-pyserial>`_
+- `PyPI page: <https://pypi.org/project/async-pyserial/>`_
 
 Installation
 ------------

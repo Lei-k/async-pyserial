@@ -1,6 +1,10 @@
 ASYNC PYSERIAL
 ===============
 
+![pypi](https://github.com/Lei-k/async-pyserial/actions/workflows/python-publish.yml/badge.svg)
+![docs](https://github.com/Lei-k/async-pyserial/actions/workflows/docs-publish.yml/badge.svg)
+![codecov](https://codecov.io/gh/Lei-k/async-pyserial/branch/main/graph/badge.svg)
+
 Python bindings for a C++ serial port library providing asynchronous serial communication support.
 
 Features

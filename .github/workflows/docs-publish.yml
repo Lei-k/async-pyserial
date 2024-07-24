@@ -24,6 +24,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install poetry
         poetry install
+        pip install sphinx sphinx-rtd-themegit
     - name: Build Docs
       run: |
         cd docs

@@ -30,7 +30,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install poetry
-        poetry install
         pip install build cibuildwheel
     - name: Build package
       run: cibuildwheel --output-dir dist
@@ -54,7 +53,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install poetry
-        poetry install
         pip install build cibuildwheel
         pip install twine
     - name: Build package
@@ -81,7 +79,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install poetry
-        poetry install
         pip install build cibuildwheel
         pip install twine
     - name: Build package

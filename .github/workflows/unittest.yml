@@ -1,0 +1,33 @@
+name: Unit Test
+
+on:
+  push:
+    branches:
+      - dev
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.x'
+    - name: Install dependencies
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install socat -y
+        python -m pip install --upgrade pip
+        pip install poetry
+        poetry export -f requirements.txt --output requirements.txt --dev --without-hashes
+        pip install -r requirements.txt
+    - name: Build Extensions
+      run: |
+        python setup.py build_ext --inplace
+    - name: Run tests with coverage
+      run: |
+        pytest --cov=async_pyserial --cov-report=xml --cov-report=term

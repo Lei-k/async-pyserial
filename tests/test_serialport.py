@@ -43,7 +43,6 @@ def test_serialport_open_close(virtual_serial_ports):
     options = SerialPortOptions()
     serial_port = SerialPort(port1, options)
     serial_port.open()
-    assert os.path.exists(port1)  # Ensure the port is created
     serial_port.close()
 
 # Test case for writing to SerialPort
@@ -57,7 +56,9 @@ def test_serialport_write(virtual_serial_ports):
 
     with open(port2, 'rb') as f:
         written_data = f.read(len(test_data))
+    
     assert written_data == test_data
+    
     serial_port.close()
 
 

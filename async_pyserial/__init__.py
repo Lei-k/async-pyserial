@@ -2,7 +2,7 @@ import sys
 
 from async_pyserial.common import *
 
-__version__ = '0.1.2'
+__version__ = '0.1.3'
 
 VERSION = __version__
 

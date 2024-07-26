@@ -49,7 +49,7 @@ ext_modules = [
 
 setup(
     name='async_pyserial',
-    version='0.1.2',
+    version='0.1.3',
     author='Neil Lei',
     author_email='qwe17235@gmail.com',
     description='Python bindings for a C++ serial port library',

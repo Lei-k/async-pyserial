@@ -1,6 +1,8 @@
+from typing import Callable
+
 class EventEmitter:
     def __init__(self) -> None:
-        self.listeners: dict[str, list] = {}
+        self.listeners: dict[str, list[Callable]] = {}
         
     def emit(self, evt: str, *args, **kwargs):
         if evt not in self.listeners:
@@ -11,11 +13,38 @@ class EventEmitter:
         for listener in listeners:
             listener(*args, **kwargs)
         
-    def on(self, evt: str, listener):
-        if evt not in self.listeners:
-            self.listeners[evt] = []
+    def on(self, evt: str, listener: Callable | None = None):
+
+        def decorator(listener: Callable):
+            if evt not in self.listeners:
+                self.listeners[evt] = []
             
-        self.listeners[evt].append(listener)
+            self.listeners[evt].append(listener)
+
+        if listener is None:
+            return decorator
+        
+        decorator(listener=listener)
+
+    def remove_all_listeners(self, evt: str):
+        if evt not in self.listeners:
+            return
+        
+        del self.listeners[evt]
+
+    def remove_listener(self, evt: str, listener: Callable):
+        if evt not in self.listeners:
+            return
+        
+        self.listeners[evt].remove(listener)
+
+        if len(self.listeners[evt]) == 0:
+            del self.listeners[evt]
+    
+    def off(self, evt: str, listener: Callable):
+        """ alias for remove_listener
+        """
+        self.remove_listener(evt, listener=listener)
         
 class PlatformNotSupported(Exception):
     def __init__(self, *args: object) -> None:

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "async_pyserial"
-version = "0.1.2"
+version = "0.1.3"
 description = "Python bindings for a C++ serial port library"
 authors = ["Neil Lei <qwe17235@gmail.com>"]
 readme = "README.rst"
@@ -10,7 +10,7 @@ python = "^3.10"
 
 [project]
 name = "async_pyserial"
-version = "0.1.2"
+version = "0.1.3"
 description = "Python bindings for a C++ serial port library"
 authors = [
     {name = "Neil Lei", email = "qwe17235@gmail.com"}

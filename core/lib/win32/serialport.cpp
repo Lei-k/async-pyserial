@@ -9,6 +9,8 @@
 using namespace async_pyserial;
 using namespace async_pyserial::internal;
 
+void WriteCompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped);
+
 SerialPort::SerialPort(const std::wstring& portName, const base::SerialPortOptions& options)
     : common::EventEmitter(), portName(portName), hSerial(INVALID_HANDLE_VALUE), options(options), hCompletionPort(NULL), _is_open(false), running(false) {}
 
@@ -23,6 +25,7 @@ enum class OperationType {
 
 struct CustomOverlapped : public OVERLAPPED {
     OperationType operationType;
+    std::function<void(unsigned long)> callback;
 };
 
 void SerialPort::open() {
@@ -150,11 +153,11 @@ void SerialPort::stopAsyncRead() {
 }
 
 void SerialPort::asyncReadThread() {
-    CustomOverlapped overlapped = {};
     char buffer[BUFFER_SIZE];
     DWORD bytesRead;
 
     while (running) {
+        CustomOverlapped overlapped = {};
         ZeroMemory(&overlapped, sizeof(overlapped));
         overlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
         overlapped.operationType = OperationType::Read;
@@ -166,12 +169,14 @@ void SerialPort::asyncReadThread() {
             }
         }
 
+        query_iocp_status:
+
         DWORD numberOfBytesTransferred;
         ULONG_PTR completionKey;
         LPOVERLAPPED lpOverlapped;
 
-        //query_iocp_status:
         if (GetQueuedCompletionStatus(hCompletionPort, &numberOfBytesTransferred, &completionKey, &lpOverlapped, INFINITE)) {
+
             auto* customOverlapped = reinterpret_cast<CustomOverlapped*>(lpOverlapped);
 
             if (customOverlapped->operationType == OperationType::Read && numberOfBytesTransferred > 0) {
@@ -181,14 +186,25 @@ void SerialPort::asyncReadThread() {
 
                 emit(SerialPortEvent::ON_DATA, emitArgs);
             }
-            // else if(customOverlapped->operationType == OperationType::Write && numberOfBytesTransferred > 0) {
-            //     // 處理掉 write 事件
-            //     CloseHandle(customOverlapped->hEvent);
+            else if(customOverlapped->operationType == OperationType::Write) {
+                // 處理掉 write 事件
 
-            //     delete customOverlapped;
+                // std::cout << "check " << GetLastError() << std::endl;
+
+                // if(GetLastError() == ERROR_IO_PENDING) {
+                //     goto query_iocp_status;
+                // }
+
                 
-            //     //goto query_iocp_status;
-            // }
+
+                if(numberOfBytesTransferred > 0) {
+                    WriteCompletionRoutine(0, numberOfBytesTransferred, lpOverlapped);
+                } else {
+                    WriteCompletionRoutine(1, numberOfBytesTransferred, lpOverlapped);
+                }
+                
+                goto query_iocp_status;
+            }
         } else {
             std::cerr << "Error in IO completion" << std::endl;
             break;
@@ -198,37 +214,62 @@ void SerialPort::asyncReadThread() {
     }
 }
 
-void SerialPort::write(const std::string& data) {
+void WriteCompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped) {
+    auto* customOverlapped = reinterpret_cast<CustomOverlapped*>(lpOverlapped);
+
+    try {
+        if(customOverlapped->callback != nullptr) {
+            auto c = std::move(customOverlapped->callback);
+
+            CloseHandle(customOverlapped->hEvent);
+
+
+
+            // 清理 OVERLAPPED 结构的内存
+            delete customOverlapped;
+
+            c(dwErrorCode);
+        } else {
+            // 清理 OVERLAPPED 结构的内存
+            CloseHandle(customOverlapped->hEvent);
+            delete customOverlapped;
+        }
+    } catch(std::exception ex) {
+        std::cerr << ex.what() << std::endl;
+    }
+
+    
+}
+
+void SerialPort::write(const std::string& data, const std::function<void(unsigned long)> callback) {
     auto* overlapped = new CustomOverlapped();
     ZeroMemory(overlapped, sizeof(CustomOverlapped));
-    overlapped->hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
     overlapped->operationType = OperationType::Write;
+    overlapped->hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+    
+    if(callback) {
+        overlapped->callback = std::move(callback);
+    }
 
     DWORD bytesWritten = 0;
+
     if (!WriteFile(hSerial, data.c_str(), data.size(), &bytesWritten, overlapped)) {
-        if (GetLastError() != ERROR_IO_PENDING) {
+        auto lasterr= GetLastError();
+        if(lasterr != ERROR_IO_PENDING) {
+            std::cerr << "Failed to write file, error: " << GetLastError() << std::endl;
             CloseHandle(overlapped->hEvent);
             delete overlapped;
 
-            throw common::SerialPortException("Error writing to serial port");
-        }
-        
-        DWORD numberOfBytesTransferred;
-        if (!GetOverlappedResult(hSerial, overlapped, &numberOfBytesTransferred, TRUE)) {
-            CloseHandle(overlapped->hEvent);
-            delete overlapped;
+            if(callback) {
+                callback(lasterr);
+            }
 
-            throw common::SerialPortException("Error getting overlapped result");
+            return;
+        }else {
+            //SetLastError(0);
         }
-        bytesWritten = numberOfBytesTransferred;
     }
 
-    CloseHandle(overlapped->hEvent);
-    delete overlapped;
-
-    if(bytesWritten != data.size()) {
-        throw common::SerialPortException("Write Error");
-    }
 }
 
 int main() {
@@ -255,7 +296,11 @@ int main() {
         std::getline(std::cin, input);
         if (input == "exit") break;
 
-        serial.write(input);
+        auto callback = [](unsigned long err) {
+
+        };
+
+        serial.write(input, callback);
     }
 
     return 0;

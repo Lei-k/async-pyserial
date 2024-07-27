@@ -1,6 +1,13 @@
 from async_pyserial.common import SerialPortOptions, SerialPortEvent, SerialPortBase
 
+<<<<<<< HEAD
 from typing import Callable
+=======
+import sys
+
+def on_write(err):
+    print(f'error: {err}')
+>>>>>>> 6f2edc6151fb6c5fadd37a3a74579e133383a68c
 
 class SerialPort(SerialPortBase):
     def __init__(self, portName: str, options: SerialPortOptions) -> None:

@@ -42,7 +42,12 @@ namespace async_pyserial
             ~SerialPort();
             void open();
             void close();
-            void write(const std::string &data);
+
+            #ifdef Win32
+            void write(const std::string data, const std::function<void(unsigned long)>& callback);
+            #else
+            std::tuple<int, size_t> write(const std::string &data);
+            #endif
             // 只設定一個 data callback 以減少 python-c++ 交互調用
             void set_data_callback(const std::function<void(const pybind11::bytes &)> &callback);
 
@@ -101,12 +106,30 @@ void SerialPort::close()
     serial->close();
 }
 
-void SerialPort::write(const std::string &data)
+#ifdef Win32
+
+void SerialPort::write(const std::string data, const std::function<void(unsigned long)>& callback) {
+    py::gil_scoped_release release;
+
+    serial->write(data, [callback](unsigned long err) {
+        if(callback) {
+            py::gil_scoped_acquire gil;
+
+            callback(err);
+        }
+    });
+}
+
+#else
+
+std::tuple<int, size_t> SerialPort::write(const std::string &data)
 {
     py::gil_scoped_release release;
 
     serial->write(data);
 }
+
+#endif
 
 void SerialPort::set_data_callback(const std::function<void(const pybind11::bytes &)> &callback)
 {

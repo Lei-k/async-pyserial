@@ -1,5 +1,7 @@
 from async_pyserial.common import SerialPortOptions, SerialPortEvent, SerialPortBase
 
+from typing import Callable
+
 class SerialPort(SerialPortBase):
     def __init__(self, portName: str, options: SerialPortOptions) -> None:
         
@@ -13,9 +15,20 @@ class SerialPort(SerialPortBase):
             self.emit(SerialPortEvent.ON_DATA, data)
         
         self.internal.set_data_callback(on_data)
+    
+    def read(self, bufsize: int, callback: Callable | None = None):
+        if callback is None:
+            pass
+        else:
+            pass
         
-    def write(self, data: bytes):
-        self.internal.write(data)
+    def write(self, data: bytes, callback: Callable | None = None):
+        if callback is None:
+            # without callback logic
+            self.internal.write(data)
+        else:
+            # with callback logic
+            self.internal.write(data)
         
     def open(self):
         self.internal.open()

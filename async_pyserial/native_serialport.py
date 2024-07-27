@@ -1,5 +1,10 @@
 from async_pyserial.common import SerialPortOptions, SerialPortEvent, SerialPortBase
 
+import sys
+
+def on_write(err):
+    print(f'error: {err}')
+
 class SerialPort(SerialPortBase):
     def __init__(self, portName: str, options: SerialPortOptions) -> None:
         
@@ -15,7 +20,10 @@ class SerialPort(SerialPortBase):
         self.internal.set_data_callback(on_data)
         
     def write(self, data: bytes):
-        self.internal.write(data)
+        if sys.platform == 'win32':
+            self.internal.write(data, on_write)
+        else:
+            self.internal.write(data)
         
     def open(self):
         self.internal.open()

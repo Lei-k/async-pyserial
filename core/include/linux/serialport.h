@@ -34,7 +34,7 @@ namespace async_pyserial
 
             void close();
             
-            void write(const std::string &data);
+            void write(const std::string &data, const std::function<void(unsigned long)>& callback);
 
             bool is_open();
 

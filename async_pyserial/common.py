@@ -103,3 +103,6 @@ class SerialPortBase(EventEmitter):
         self.internal_options.parity = options.parity
         self.internal_options.write_timeout = options.write_timeout
         self.internal_options.read_timeout = options.read_timeout
+
+class SerialPortError(Exception):
+    pass

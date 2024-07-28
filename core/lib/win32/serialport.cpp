@@ -241,14 +241,14 @@ void WriteCompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, 
     
 }
 
-void SerialPort::write(const std::string& data, const std::function<void(unsigned long)> callback) {
+void SerialPort::write(const std::string& data, const std::function<void(unsigned long)>& callback) {
     auto* overlapped = new CustomOverlapped();
     ZeroMemory(overlapped, sizeof(CustomOverlapped));
     overlapped->operationType = OperationType::Write;
     overlapped->hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
     
     if(callback) {
-        overlapped->callback = std::move(callback);
+        overlapped->callback = callback;
     }
 
     DWORD bytesWritten = 0;
@@ -263,10 +263,6 @@ void SerialPort::write(const std::string& data, const std::function<void(unsigne
             if(callback) {
                 callback(lasterr);
             }
-
-            return;
-        }else {
-            //SetLastError(0);
         }
     }
 
@@ -296,7 +292,7 @@ int main() {
         std::getline(std::cin, input);
         if (input == "exit") break;
 
-        auto callback = [](unsigned long err) {
+        auto callback = [](int err) {
 
         };
 

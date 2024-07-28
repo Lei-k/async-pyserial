@@ -15,7 +15,11 @@
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/time.h>
+#include <functional>
+#include <deque>
 #include <common/event.h>
+#include <common/common.h>
+#include <mutex>
 
 #include <base/serialport.h>
 
@@ -30,6 +34,12 @@ namespace async_pyserial
             ON_DATA = 1
         };
 
+        struct IOEvent {
+            std::string data;
+            size_t bytes_written;
+            std::function<void(unsigned long)> callback;
+        };
+
         class SerialPort : public common::EventEmitter
         {
         public:
@@ -40,24 +50,23 @@ namespace async_pyserial
 
             void close();
             
-            void write(const std::string &data);
+            void write(const std::string &data, const std::function<void(unsigned long)>& callback);
 
             bool is_open();
 
         private:
             void configure(unsigned long baudRate, unsigned char byteSize, unsigned char stopBits, unsigned char parity);
 
-            void startAsyncRead();
-            void stopAsyncRead();
+            void startKqueueWorker();
+            void stopKqueueWorker();
 
-            void asyncReadThread();
+            void kqueueWorker();
 
             std::wstring portName;
 
             base::SerialPortOptions options;
 
             struct kevent serial_evt;
-            struct kevent notify_evt;
             int notify_fd;
 
             std::thread readThread;
@@ -67,6 +76,10 @@ namespace async_pyserial
 
             bool _is_open;
             bool running;
+
+            std::deque<IOEvent> w_queue;
+            std::mutex w_mutex;
+
         };
     }
 }

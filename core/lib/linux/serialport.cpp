@@ -325,7 +325,7 @@ void SerialPort::close() {
 }
 
 
-void SerialPort::write(const std::string& data) {
+void SerialPort::write(const std::string &data, const std::function<void(unsigned long)>& callback) {
     if (!is_open()) {
         throw common::SerialPortException("Serial port is not open");
     }

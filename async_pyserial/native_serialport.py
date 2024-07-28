@@ -1,13 +1,12 @@
-from async_pyserial.common import SerialPortOptions, SerialPortEvent, SerialPortBase
+from async_pyserial.common import SerialPortOptions, SerialPortEvent, SerialPortBase, SerialPortError
 
-<<<<<<< HEAD
 from typing import Callable
-=======
-import sys
 
-def on_write(err):
-    print(f'error: {err}')
->>>>>>> 6f2edc6151fb6c5fadd37a3a74579e133383a68c
+from concurrent.futures import Future
+
+from async_pyserial import backend
+
+import threading
 
 class SerialPort(SerialPortBase):
     def __init__(self, portName: str, options: SerialPortOptions) -> None:
@@ -28,14 +27,97 @@ class SerialPort(SerialPortBase):
             pass
         else:
             pass
+
+    def __calculate_stt(self, data_size):
+        """
+        Calculate the Serial Transmission Time (STT).
+        
+        Parameters:
+        data_size (int): The size of the data packet in bytes.
+        
+        Returns:
+        float: The estimated transmission time in seconds.
+        """
+        # Calculate the transmission time, considering start bit, data bits, and stop bit
+        stt = (data_size * 10) / self.options.baudrate
+        return stt
         
     def write(self, data: bytes, callback: Callable | None = None):
-        if callback is None:
-            # without callback logic
-            self.internal.write(data)
+        if backend.async_worker == 'gevent':
+            import gevent
+            from gevent.event import AsyncResult
+
+            ar = AsyncResult()
+
+            def cb(err):
+                ar.set(err)
+
+            self.internal.write(data, cb)
+
+            stt = self.__calculate_stt(len(data))
+            wt = stt / 20.0
+
+            if wt > 0.05:
+                # max wait time is 0.05s
+                wt = 0.05
+
+            while not ar.ready():
+                # maybe can use ar.wait(timeout=0.01)
+                # but it look like unsable
+                # ar.wait(timeout=0.01) test history
+                # Invalid switch into <Greenlet at 0x103661ee0: run>: 
+                # got <gevent._gevent_cevent.AsyncResult object at 0x103f6a570> 
+                # (expected <gevent._gevent_c_waiter.Waiter object at 0x103ffddf0>; 
+                # waiting on <Hub '' at 0x103fbb560 select default pending=0 ref=1 thread_ident=0x1e57d2080> 
+                # with <timer at 0x103bd6d40 native=0x103bd6d80 active callback=<bound method Waiter.switch 
+                # of <gevent._gevent_c_waiter.Waiter object at 0x103ffddf0>> args=(<gevent._gevent_c_waiter.Waiter 
+                # object at 0x103ffddf0>,)>)
+                gevent.sleep(wt)
+
+            err = ar.get()
+
+            if err != 0:
+                raise SerialPortError('write failure')
+        elif backend.async_worker == 'eventlet':
+            import eventlet
+            from eventlet.event import Event
+
+            evt = Event()
+
+            def cb(err):
+                
+                evt.send(err)
+
+            self.internal.write(data, cb)
+
+            stt = self.__calculate_stt(len(data))
+            wt = stt / 20.0
+
+            if wt > 0.05:
+                # max wait time is 0.05s
+                wt = 0.05
+
+            while not evt.ready():
+                eventlet.sleep(wt)
+
+            err = evt.wait()
+
+            if err != 0:
+                raise SerialPortError('write failure')
+        elif callback is not None:
+            self.internal.write(data, callback)
         else:
-            # with callback logic
-            self.internal.write(data)
+            future = Future()
+
+            def cb(err):
+                future.set_result(err)
+
+            self.internal.write(data, cb)
+
+            err = future.result()
+
+            if err != 0:
+                raise SerialPortError('write failure')
         
     def open(self):
         self.internal.open()

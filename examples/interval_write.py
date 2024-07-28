@@ -3,7 +3,7 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description='Async Serial Port Communication Tool')
     parser.add_argument('port', type=str, help='The COM port to use (e.g., COM3 or /dev/ttyUSB0)')
-    parser.add_argument('--async-worker', type=str, default="none", choices=["none", "gevent", "eventlet"], help='async worker (default: none)')
+    parser.add_argument('--async-worker', type=str, default="none", choices=["none", "gevent", "eventlet", "asyncio"], help='async worker (default: none)')
     parser.add_argument('--use-callback', action='store_true', help='use callback (default: False)')
     parser.add_argument('--baudrate', type=int, default=9600, help='Baud rate (default: 9600)')
     parser.add_argument('--bytesize', type=int, choices=[5, 6, 7, 8], default=8, help='Number of data bits (default: 8)')
@@ -87,6 +87,42 @@ if __name__ == "__main__":
         finally:
             serial.close()
 
+    async def async_run():
+        import asyncio
+
+        options = SerialPortOptions()
+        options.baudrate = args.baudrate
+        options.bytesize = args.bytesize
+        options.stopbits = args.stopbits
+        options.parity = args.parity
+
+        serial = SerialPort(args.port, options)
+        serial.on(SerialPortEvent.ON_DATA, on_data)
+        serial.open()
+
+        try:
+            while True:
+                size = 1000 * 1024
+
+                # # 生成指定大小的字节对象
+                large_bytes = bytes([42] * size)
+
+                start = time.time()
+
+                await serial.write(large_bytes)
+
+                end = time.time()
+
+                print('{} bytes written, consume time: {:.4f}s'.format(len(large_bytes), end-start))
+
+                await asyncio.sleep(1)
+        except KeyboardInterrupt:
+            pass
+        except Exception as ex:
+            print(ex)
+        finally:
+            serial.close()
+
     if async_worker == 'gevent':
         import gevent
 
@@ -97,5 +133,9 @@ if __name__ == "__main__":
         task = eventlet.spawn(run)
 
         task.wait()
+    elif async_worker == 'asyncio':
+        import asyncio
+
+        asyncio.run(async_run())
     else:
         run()

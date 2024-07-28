@@ -42,6 +42,7 @@ sphinx = "^7.4.7"
 sphinx-rtd-theme = "^2.0.0"
 gevent = "^24.2.1"
 eventlet = "^0.36.1"
+asyncio = "^3.4.3"
 
 [build-system]
 requires = ["setuptools>=71.0.1", "pybind11>=2.13.1", "wheel>=0.43.0"]

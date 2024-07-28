@@ -104,6 +104,25 @@ class SerialPort(SerialPortBase):
 
             if err != 0:
                 raise SerialPortError('write failure')
+        elif backend.async_worker == 'asyncio':
+            import asyncio
+
+            loop = backend.async_loop
+
+            if loop is None:
+                loop = asyncio.get_running_loop()
+
+            future = loop.create_future()
+
+            def cb(err):
+                if err == 0:
+                    loop.call_soon_threadsafe(future.set_result, None)
+                else:
+                    loop.call_soon_threadsafe(future.set_exception, SerialPortError('write failure'))
+            
+            self.internal.write(data, cb)
+
+            return future
         elif callback is not None:
             self.internal.write(data, callback)
         else:

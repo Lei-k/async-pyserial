@@ -49,7 +49,7 @@ if __name__ == "__main__":
 
         try:
             while True:
-                size = 1000 * 1024
+                size = 1 * 1024
 
                 # # 生成指定大小的字节对象
                 large_bytes = bytes([42] * size)

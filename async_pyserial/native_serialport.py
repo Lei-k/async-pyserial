@@ -6,7 +6,7 @@ from concurrent.futures import Future
 
 from async_pyserial import backend
 
-import threading
+from threading import RLock
 
 class SerialPort(SerialPortBase):
     def __init__(self, portName: str, options: SerialPortOptions) -> None:
@@ -16,17 +16,24 @@ class SerialPort(SerialPortBase):
         from async_pyserial import async_pyserial_core
         
         self.internal = async_pyserial_core.SerialPort(portName, self.internal_options)
+        
+        self.__read_bufsize = options.read_bufsize
+        
+        self.__read_buf = b''
+        
+        self.__r_lock = RLock()
             
-        def on_data(data):
+        def on_receieved(data):
+            if self.__read_bufsize > 0:
+                with self.__r_lock:
+                    actual_size = min(len(data), max(self.__read_bufsize - len(self.__read_buf), 0))
+                    
+                    if actual_size > 0:
+                        self.__read_buf += data[:actual_size]
+            
             self.emit(SerialPortEvent.ON_DATA, data)
         
-        self.internal.set_data_callback(on_data)
-    
-    def read(self, bufsize: int, callback: Callable | None = None):
-        if callback is None:
-            pass
-        else:
-            pass
+        self.internal.set_data_callback(on_receieved)
 
     def __calculate_stt(self, data_size):
         """
@@ -41,8 +48,184 @@ class SerialPort(SerialPortBase):
         # Calculate the transmission time, considering start bit, data bits, and stop bit
         stt = (data_size * 10) / self.options.baudrate
         return stt
+    
+    def read(self, bufsize: int = 512, callback: Callable | None = None):
+        """
+        Read data from the serial port. If a callback is provided, the read will be asynchronous and 
+        the callback will be called with the read data. Otherwise, the read will be synchronous or asynchronous
+        depending on whether an async_worker is set.
+
+        Note:
+            It is recommended to set SerialPortEvent.ON_DATA to receive data.
+            If you use read(), ensure that the read_bufsize in options is set appropriately
+            to prevent data loss. Setting a larger read_bufsize ensures that enough data
+            is buffered internally to handle the read operation.
+
+            By default, read_bufsize is 0, meaning only data received after the read call,
+            up to the specified bufsize, will be returned.
+
+            This read method supports different async workers:
+            - gevent
+            - eventlet
+            - asyncio
+
+            If async_worker is set using async_pyserial.set_async_worker(`async-worker`), 
+            the read method will use asynchronous processing.
+        """
+        if backend.async_worker == 'gevent':
+            return self.__gevent_read(bufsize)
+        elif backend.async_worker == 'eventlet':
+            return self.__eventlet_read(bufsize)
+        elif backend.async_worker == 'asyncio':
+            return self.__asyncio_read(bufsize)
+        elif callback is not None:
+            self.__callback_read(bufsize, callback)
+        else:
+            return self.__sync_read(bufsize)
+        
+    def __callback_read(self, bufsize: int, callback: Callable):
+        if self.__read_bufsize <= 0:            
+            def on_receieved(data):
+                self.off(SerialPortEvent.ON_DATA, on_receieved)
+                
+                actual_size = min(len(data), bufsize)
+                
+                buf = data[:actual_size]
+                
+                callback(buf)
+                
+            self.on(SerialPortEvent.ON_DATA, on_receieved)
+            
+            return
+        
+        if self.__read_buf != b'':
+            # some data have in internal read buf
+            # return buf with max bufsize directly
+            with self.__r_lock:
+                actual_size = min(len(self.__read_buf), bufsize)
+                
+                buf = self.__read_buf[:actual_size]
+                
+                self.__read_buf = self.__read_buf[actual_size:]
+                
+            callback(buf)
+                
+            return
+                
+        def on_receieved(_: bytes):
+            self.off(SerialPortEvent.ON_DATA, on_receieved)
+            
+            # read from __read_buf
+            actual_size = min(len(self.__read_buf), bufsize)
+                
+            buf = self.__read_buf[:actual_size]
+            
+            self.__read_buf = self.__read_buf[actual_size:]
+            
+            callback(buf)
+            
+        self.on(SerialPortEvent.ON_DATA, on_receieved)
+        
+    def __sync_read(self, bufsize: int):
+        future = Future()
+        
+        def on_receieved(data):
+            future.set_result(data)
+        
+        self.__callback_read(bufsize, on_receieved)
+        
+        return future.result()
+        
+    def __gevent_read(self, bufsize: int):
+        
+        import gevent
+        from gevent.event import AsyncResult
+        
+        ar = AsyncResult()
+        
+        def on_receieved(data):
+            ar.set(data)
+            
+        self.__callback_read(bufsize, on_receieved)
+            
+        # calc stt for read bufsize
+        stt = self.__calculate_stt(bufsize)
+        wt = stt / 20.0
+        
+        wt = min(wt, 0.05)  # max wait time is 0.05s
+
+        while not ar.ready():
+            gevent.sleep(wt)
+    
+        
+        buf = ar.get()
+        
+        return buf
+    
+    def __eventlet_read(self, bufsize: int):
+        
+        import eventlet
+        from eventlet.event import Event
+
+        evt = Event()
+        
+        def on_receieved(data):
+            evt.send(data)
+            
+        self.__callback_read(bufsize, on_receieved)
+            
+        # calc stt for read bufsize
+        stt = self.__calculate_stt(bufsize)
+        wt = stt / 20.0
+        
+        wt = min(wt, 0.05)  # max wait time is 0.05s
+            
+        while not evt.ready():
+            eventlet.sleep(wt)
+            
+        buf = evt.wait()
+        
+        return buf
+    
+    def __asyncio_read(self, bufsize: int):
+        import asyncio
+
+        loop = backend.async_loop
+
+        if loop is None:
+            loop = asyncio.get_running_loop()
+
+        future = loop.create_future()
+
+        def on_receieved(data):
+            loop.call_soon_threadsafe(future.set_result, data)
+        
+        self.__callback_read(bufsize, on_receieved)
+        
+        return future
         
     def write(self, data: bytes, callback: Callable | None = None):
+        """
+        Write data to the serial port. If a callback is provided, the write will be asynchronous and 
+        the callback will be called with the result. Otherwise, the write will be synchronous or asynchronous
+        depending on whether an async_worker is set.
+
+        Note:
+            This write method supports different async workers:
+            - gevent
+            - eventlet
+            - asyncio
+
+            If async_worker is set using async_pyserial.set_async_worker(`async-worker`), 
+            the write method will use asynchronous processing.
+
+        Args:
+            data (bytes): The data to be written to the serial port.
+            callback (Callable, optional): The callback to be called with the result of the write operation.
+
+        Raises:
+            SerialPortError: If the write operation fails.
+        """
         if backend.async_worker == 'gevent':
             import gevent
             from gevent.event import AsyncResult

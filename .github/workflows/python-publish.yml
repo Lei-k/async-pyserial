@@ -31,8 +31,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install poetry
         pip install build cibuildwheel
-    - name: Build package
+    - name: Build wheels
       run: cibuildwheel --output-dir dist
+    - name: Build source distribution
+      run: python -m build --sdist --outdir dist
     - name: Publish package
       uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
       with:
@@ -55,8 +57,10 @@ jobs:
         pip install poetry
         pip install build cibuildwheel
         pip install twine
-    - name: Build package
+    - name: Build wheels
       run: cibuildwheel --output-dir dist
+    - name: Build source distribution
+      run: python -m build --sdist --outdir dist
     - name: Publish package
       env:
           TWINE_USERNAME: __token__
@@ -81,8 +85,10 @@ jobs:
         pip install poetry
         pip install build cibuildwheel
         pip install twine
-    - name: Build package
+    - name: Build wheels
       run: cibuildwheel --output-dir dist
+    - name: Build source distribution
+      run: python -m build --sdist --outdir dist
     - name: Publish package
       env:
           TWINE_USERNAME: __token__

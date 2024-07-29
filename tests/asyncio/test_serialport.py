@@ -1,9 +1,10 @@
 import pytest
 import subprocess
 import time
-from async_pyserial import SerialPort, SerialPortOptions, SerialPortEvent, set_async_worker
+from async_pyserial import SerialPort, SerialPortOptions, set_async_worker
 import os
-import threading
+
+import asyncio
 
 from tests.test_util import get_port_pair
 
@@ -20,7 +21,7 @@ def virtual_serial_ports():
     # Give socat some time to set up the ports
     time.sleep(2)
 
-    set_async_worker('none')
+    set_async_worker('asyncio')
 
     yield port1, port2
 
@@ -35,54 +36,59 @@ def virtual_serial_ports():
 
 # Test case for initializing SerialPort
 def test_serialport_init(virtual_serial_ports):
-    port1, port2 = virtual_serial_ports
+    port1, _ = virtual_serial_ports
     options = SerialPortOptions()
-    serial_port = SerialPort(port1, options)
-    assert serial_port is not None
+    serial = SerialPort(port1, options)
+    assert serial is not None
 
 # Test case for opening and closing SerialPort
 def test_serialport_open_close(virtual_serial_ports):
-    port1, port2 = virtual_serial_ports
+    port1, _ = virtual_serial_ports
     options = SerialPortOptions()
-    serial_port = SerialPort(port1, options)
-    serial_port.open()
-    serial_port.close()
+    serial = SerialPort(port1, options)
+
+    serial.open()
+
+    assert serial.is_open() == True
+
+    serial.close()
+
+    assert serial.is_open() == False
 
 # Test case for writing to SerialPort
-def test_serialport_write(virtual_serial_ports):
+@pytest.mark.asyncio
+async def test_serialport_write(virtual_serial_ports):
     port1, port2 = virtual_serial_ports
     options = SerialPortOptions()
-    serial_port = SerialPort(port1, options)
-    serial_port.open()
+    serial = SerialPort(port1, options)
+    serial.open()
     test_data = b'Hello, world!'
-    serial_port.write(test_data)
+
+    await serial.write(test_data)
 
     with open(port2, 'rb') as f:
         written_data = f.read(len(test_data))
     
     assert written_data == test_data
     
-    serial_port.close()
+    serial.close()
 
 
-def test_serialport_on_data_event(virtual_serial_ports):
+@pytest.mark.asyncio
+async def test_serialport_read(virtual_serial_ports):
     port1, port2 = virtual_serial_ports
     options = SerialPortOptions()
-    serial_port = SerialPort(port1, options)
-    serial_port.open()
+    options.read_bufsize = 512
+    serial = SerialPort(port1, options)
+    serial.open()
 
     test_data = b'Hello, world!'
-    event = threading.Event()
-
-    def on_data(data):
-        assert data == test_data
-        event.set()
-
-    serial_port.on(SerialPortEvent.ON_DATA, on_data)
 
     with open(port2, 'wb') as f:
         f.write(test_data)
 
-    event_triggered = event.wait(timeout=2)
-    assert event_triggered
-    serial_port.close()
+    buf = await serial.read()
+
+    assert buf == test_data
+
+    serial.close()

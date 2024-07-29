@@ -16,6 +16,8 @@ class SerialPort(SerialPortBase):
         from async_pyserial import async_pyserial_core
         
         self.internal = async_pyserial_core.SerialPort(portName, self.internal_options)
+
+        self.__is_open = False
         
         self.__read_bufsize = options.read_bufsize
         
@@ -117,6 +119,8 @@ class SerialPort(SerialPortBase):
             
             # read from __read_buf
             actual_size = min(len(self.__read_buf), bufsize)
+
+            print(f'size: {len(self.__read_buf)}')
                 
             buf = self.__read_buf[:actual_size]
             
@@ -323,6 +327,11 @@ class SerialPort(SerialPortBase):
         
     def open(self):
         self.internal.open()
+        self.__is_open = True
         
     def close(self):
         self.internal.close()
+        self.__is_open = False
+
+    def is_open(self):
+        return self.__is_open

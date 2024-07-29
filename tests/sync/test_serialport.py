@@ -1,11 +1,11 @@
 import pytest
 import subprocess
 import time
-from async_pyserial import SerialPort, SerialPortOptions, SerialPortEvent, set_async_worker
+from async_pyserial import SerialPort, SerialPortOptions, set_async_worker
 import os
-import threading
 
 from tests.test_util import get_port_pair
+import threading
 
 # Fixture to set up and tear down a pair of virtual serial ports using socat
 @pytest.fixture(scope="module")
@@ -35,18 +35,24 @@ def virtual_serial_ports():
 
 # Test case for initializing SerialPort
 def test_serialport_init(virtual_serial_ports):
-    port1, port2 = virtual_serial_ports
+    port1, _ = virtual_serial_ports
     options = SerialPortOptions()
-    serial_port = SerialPort(port1, options)
-    assert serial_port is not None
+    serial = SerialPort(port1, options)
+    assert serial is not None
 
 # Test case for opening and closing SerialPort
 def test_serialport_open_close(virtual_serial_ports):
-    port1, port2 = virtual_serial_ports
+    port1, _ = virtual_serial_ports
     options = SerialPortOptions()
-    serial_port = SerialPort(port1, options)
-    serial_port.open()
-    serial_port.close()
+    serial = SerialPort(port1, options)
+
+    serial.open()
+
+    assert serial.is_open() == True
+
+    serial.close()
+
+    assert serial.is_open() == False
 
 # Test case for writing to SerialPort
 def test_serialport_write(virtual_serial_ports):
@@ -65,24 +71,47 @@ def test_serialport_write(virtual_serial_ports):
     serial_port.close()
 
 
-def test_serialport_on_data_event(virtual_serial_ports):
+def test_serialport_read(virtual_serial_ports):
     port1, port2 = virtual_serial_ports
     options = SerialPortOptions()
-    serial_port = SerialPort(port1, options)
-    serial_port.open()
+    options.read_bufsize = 512
+    serial = SerialPort(port1, options)
+    serial.open()
 
     test_data = b'Hello, world!'
-    event = threading.Event()
-
-    def on_data(data):
-        assert data == test_data
-        event.set()
-
-    serial_port.on(SerialPortEvent.ON_DATA, on_data)
 
     with open(port2, 'wb') as f:
         f.write(test_data)
 
-    event_triggered = event.wait(timeout=2)
-    assert event_triggered
-    serial_port.close()
+    buf = serial.read()
+
+    assert buf == test_data
+
+    serial.close()
+
+def test_serialport_read_with_delay_write(virtual_serial_ports):
+    port1, port2 = virtual_serial_ports
+    options = SerialPortOptions()
+    options.read_bufsize = 512
+    serial = SerialPort(port1, options)
+    serial.open()
+
+    test_data = b'Hello, world!'
+
+    def write_data():
+        time.sleep(0.5)
+
+        with open(port2, 'wb') as f:
+            f.write(test_data)
+
+    t = threading.Thread(target=write_data)
+
+    t.daemon = True
+
+    t.start()
+
+    buf = serial.read()
+
+    assert buf == test_data
+
+    serial.close()

@@ -21,6 +21,10 @@
 #include <common/common.h>
 #include <mutex>
 
+#include <common/util.h>
+#include <common/exception.h>
+#include <iostream>
+
 #include <base/serialport.h>
 
 namespace async_pyserial

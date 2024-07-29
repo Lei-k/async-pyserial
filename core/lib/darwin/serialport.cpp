@@ -1,9 +1,6 @@
 #ifdef __darwin__
 
 #include <darwin/serialport.h>
-#include <common/util.h>
-#include <common/exception.h>
-#include <iostream>
 
 #define BUFFER_SIZE 1024
 

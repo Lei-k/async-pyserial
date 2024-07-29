@@ -1,6 +1,6 @@
-#ifdef __darwin__
+#ifdef __bsd__
 
-#include <darwin/serialport.h>
+#include <bsd/serialport.h>
 #include <common/util.h>
 #include <common/exception.h>
 #include <iostream>

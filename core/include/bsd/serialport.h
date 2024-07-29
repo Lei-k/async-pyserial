@@ -1,7 +1,7 @@
-#ifdef __darwin__
+#ifdef __bsd__
 
-#ifndef ASYNC_PYSERIAL_DARWIN_SERIALPORT_H
-#define ASYNC_PYSERIAL_DARWIN_SERIALPORT_H
+#ifndef ASYNC_PYSERIAL_BSD_SERIALPORT_H
+#define ASYNC_PYSERIAL_BSD_SERIALPORT_H
 
 #include <string>
 #include <vector>

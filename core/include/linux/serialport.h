@@ -10,6 +10,9 @@
 #include <base/serialport.h>
 #include <common/event.h>
 #include <common/exception.h>
+#include <deque>
+#include <mutex>
+#include <common/common.h>
 
 #include <sys/epoll.h>
 
@@ -24,6 +27,12 @@ namespace async_pyserial
             ON_DATA = 1
         };
 
+        struct IOEvent {
+            std::string data;
+            size_t bytes_written;
+            std::function<void(unsigned long)> callback;
+        };
+
         class SerialPort : public common::EventEmitter
         {
         public:
@@ -34,23 +43,23 @@ namespace async_pyserial
 
             void close();
             
-            void write(const std::string &data);
+            void write(const std::string &data, const std::function<void(unsigned long)>& callback);
 
             bool is_open();
 
         private:
             void configure(unsigned long baudRate, unsigned char byteSize, unsigned char stopBits, unsigned char parity);
 
-            void startAsyncRead();
-            void stopAsyncRead();
+            void startEpollWorker();
+            void stopEpollWorker();
 
-            void asyncReadThread();
+            void epollWorker();
 
             std::wstring portName;
 
             base::SerialPortOptions options;
 
-            struct epoll_event event;
+            struct epoll_event serial_evt;
             struct epoll_event notify_evt;
             int notify_fd;
 
@@ -61,6 +70,9 @@ namespace async_pyserial
 
             bool _is_open;
             bool running;
+
+            std::deque<IOEvent> w_queue;
+            std::mutex w_mutex;
         };
     }
 }

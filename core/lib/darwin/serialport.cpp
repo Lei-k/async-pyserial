@@ -5,7 +5,7 @@
 #include <common/exception.h>
 #include <iostream>
 
-#define BUFFER_SIZE 256
+#define BUFFER_SIZE 1024
 
 using namespace async_pyserial;
 using namespace async_pyserial::internal;
@@ -143,7 +143,7 @@ void SerialPort::open() {
         throw common::SerialPortException("Failed to add pipe event to kqueue");
     }
 
-    startAsyncRead();
+    startKqueueWorker();
 
     _is_open = true;
 }
@@ -195,14 +195,14 @@ void SerialPort::configure(unsigned long baudRate, unsigned char byteSize, unsig
     }
 }
 
-void SerialPort::asyncReadThread() {
+void SerialPort::kqueueWorker() {
     struct kevent event;
 
     char buffer[BUFFER_SIZE];
 
     while(running) {
         
-
+query_kevent:
         int n = kevent(kqueue_fd, NULL, 0, &event, 1, NULL);
 
         if(n == -1) {
@@ -218,19 +218,98 @@ void SerialPort::asyncReadThread() {
         if(n > 0) {
             if (event.filter == EVFILT_READ) {
                 if(event.ident == serial_fd) {
-                    ssize_t bytes_read = ::read(serial_fd, buffer, BUFFER_SIZE);
+                    while (true) {
+                        ssize_t bytes_read = ::read(serial_fd, buffer, BUFFER_SIZE);
 
-                    // maybe need to process errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR
-                    // when bytes_read is negative
-                    if (bytes_read > 0) {
-                        std::vector<std::any> args;
-                        args.emplace_back(std::string(reinterpret_cast<char*>(buffer), bytes_read));
-                        emit(SerialPortEvent::ON_DATA, args);
+                        if(bytes_read < 0) {
+                            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+                                // Retry write if it was interrupted by a signal
+                                // or when Resource temporarily unavailable occure
+                                goto query_kevent;
+                            } else {
+                                break;
+                            }
+                        }
+
+                        if(bytes_read < 0) {
+                            break;
+                        }
+
+                        // maybe need to process errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR
+                        // when bytes_read is negative
+                        if (bytes_read > 0) {
+                            std::vector<std::any> args;
+                            args.emplace_back(std::string(reinterpret_cast<char*>(buffer), bytes_read));
+                            emit(SerialPortEvent::ON_DATA, args);
+                        }
                     }
+                    
                 } else if(event.ident == notify_fd) {
                     ::read(notify_fd, &buffer, sizeof(buffer));
 
                     break;
+                }
+            } else if(event.ident == serial_fd && event.filter == EVFILT_WRITE) {
+                std::unique_lock<std::mutex> lock(w_mutex);
+
+                bool write_failure = false;
+
+                while(w_queue.size() > 0) {
+                    auto& io_evt = w_queue.front();
+
+                    auto& data = io_evt.data;
+
+                    size_t bytes_to_write = data.size();
+
+                    while (io_evt.bytes_written < bytes_to_write) {
+                        ssize_t bytes_written = ::write(serial_fd, data.c_str() + io_evt.bytes_written, bytes_to_write - io_evt.bytes_written);
+
+                        if (bytes_written < 0) {
+                            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+                                // Retry write if it was interrupted by a signal
+                                // or when Resource temporarily unavailable occure
+                                goto query_kevent;
+                            } else {
+                                // write failure
+                                write_failure = true;
+
+                                break;
+                            }
+                        }
+                        
+                        io_evt.bytes_written += bytes_written;
+                    }
+
+                    auto& callback = io_evt.callback;
+
+                    // maybe use other thread to process this callback in future
+                    callback(common::SUCCESS);
+
+                    // pop evt when write complete
+                    w_queue.pop_front();
+                }
+
+                if(write_failure) {
+                    // write failure occure
+                    EV_SET(&serial_evt, serial_fd, EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
+
+                    kevent(kqueue_fd, &serial_evt, 1, nullptr, 0, nullptr);
+
+                    // all writes are failure
+                    while(w_queue.size() > 0) {
+                        auto& io_evt = w_queue.front();
+
+                        auto& callback = io_evt.callback;
+
+                        callback(common::FAILURE);
+
+                        w_queue.pop_front();
+                    }
+                } else {
+                    // all writes done
+                    EV_SET(&serial_evt, serial_fd, EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
+
+                    kevent(kqueue_fd, &serial_evt, 1, nullptr, 0, nullptr);
                 }
             }
         }
@@ -239,17 +318,17 @@ void SerialPort::asyncReadThread() {
     running = false;
 }
 
-void SerialPort::startAsyncRead() {
+void SerialPort::startKqueueWorker() {
     if(running) {
         return;
     }
 
     running = true;
 
-    readThread = std::thread(&SerialPort::asyncReadThread, this);
+    readThread = std::thread(&SerialPort::kqueueWorker, this);
 }
 
-void SerialPort::stopAsyncRead() {
+void SerialPort::stopKqueueWorker() {
     if(!running) {
         return;
     }
@@ -269,7 +348,7 @@ bool SerialPort::is_open() {
 }
 
 void SerialPort::close() {
-    stopAsyncRead();
+    stopKqueueWorker();
 
     if(!_is_open) return;
 
@@ -297,31 +376,30 @@ void SerialPort::close() {
     _is_open = false;
 }
 
-
-void SerialPort::write(const std::string& data) {
+void SerialPort::write(const std::string &data, const std::function<void(unsigned long)>& callback) {
     if (!is_open()) {
-        throw common::SerialPortException("Serial port is not open");
+        callback(common::NOT_OPEN);
+        return;
     }
 
-    ssize_t total_bytes_written = 0;
-    ssize_t bytes_to_write = data.size();
+    IOEvent io_evt;
 
-    while (total_bytes_written < bytes_to_write) {
-        ssize_t bytes_written = ::write(serial_fd, data.c_str() + total_bytes_written, bytes_to_write - total_bytes_written);
+    io_evt.callback = callback;
+    io_evt.bytes_written = 0;
+    io_evt.data = data;
 
-        if (bytes_written < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
-                // Retry write if it was interrupted by a signal
-                // or when Resource temporarily unavailable occure
-                continue;
-            } else {
-                std::cerr << "Error: " << strerror(errno) << std::endl;
+    std::unique_lock<std::mutex> lock(w_mutex);
 
-                throw common::SerialPortException("Write to serial port failure");
-            }
-        }
-        
-        total_bytes_written += bytes_written;
+    w_queue.push_back(std::move(io_evt));
+
+    EV_SET(&serial_evt, serial_fd, EVFILT_WRITE, EV_ADD | EV_ENABLE, 0, 0, NULL);
+
+    if (kevent(kqueue_fd, &serial_evt, 1, nullptr, 0, nullptr) == -1) {
+        w_queue.pop_back();
+
+        lock.unlock();
+
+        callback(common::FAILURE);
     }
 }
 

@@ -30,7 +30,7 @@ if __name__ == "__main__":
         
         print(len(data), data)
         
-    def run_read():
+    def run():
         try:
             while True:
                 buf = serial.read()
@@ -39,7 +39,7 @@ if __name__ == "__main__":
         except Exception as ex:
             print(ex)
             
-    async def async_run_read():
+    async def async_run():
         while True:
             buf = await serial.read()
             
@@ -63,60 +63,10 @@ if __name__ == "__main__":
     print(f'read mode: {args.read_mode}')
         
     serial.open()
-    
-    def run():
-        try:
-            while True:
-                data_to_send = input("Enter to send data or ('exit' to quit): ")
-                if data_to_send.lower() == 'exit':
-                    break
-                
-                size = 100 * 1024
-
-                # # 生成指定大小的字节对象
-                large_bytes = bytes([42] * size)
-                
-                #serial.write(large_bytes, lambda err: print(f'error: {err}'))
-                
-                serial.write(data_to_send.encode('utf-8'))
-        except KeyboardInterrupt:
-            pass
-        except Exception as ex:
-            print(ex)
-        finally:
-            serial.close()
-            
-    async def async_run():
-        async_run_read()
-        
-        try:
-            while True:
-                data_to_send = input("Enter to send data or ('exit' to quit): ")
-                if data_to_send.lower() == 'exit':
-                    break
-                
-                size = 100 * 1024
-
-                # # 生成指定大小的字节对象
-                large_bytes = bytes([42] * size)
-                
-                #serial.write(large_bytes, lambda err: print(f'error: {err}'))
-                
-                await serial.write(data_to_send.encode('utf-8'))
-        except KeyboardInterrupt:
-            pass
-        except Exception as ex:
-            print(ex)
-        finally:
-            serial.close()
             
     if args.async_worker == 'gevent':
         import gevent
         
-        tasks = []
-        
-        serial.on(SerialPortEvent.ON_DATA, on_receieved)
-
         t = gevent.spawn(run)
         
         t.join()
@@ -124,13 +74,8 @@ if __name__ == "__main__":
     elif args.async_worker == 'eventlet':
         import eventlet
         
-        pool = eventlet.GreenPool()
         
-        tasks = []
-        
-        serial.on(SerialPortEvent.ON_DATA, on_receieved)
-        
-        t = pool.spawn(run)
+        t = eventlet.spawn(run)
         
         t.wait()
             
@@ -139,15 +84,4 @@ if __name__ == "__main__":
         
         asyncio.run(async_run())
     else:        
-        if args.read_mode == 'from-event':
-            serial.on(SerialPortEvent.ON_DATA, on_receieved)
-        else:
-            if args.async_worker != 'asyncio':
-                print('start read thread')
-                read_t = Thread(target=run_read)
-                
-                read_t.daemon = True
-                
-                read_t.start()
-        
         run()

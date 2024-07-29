@@ -2,11 +2,13 @@ import sys
 
 from async_pyserial.common import *
 
+from async_pyserial.backend import set_async_worker
+
 __version__ = '0.1.3'
 
 VERSION = __version__
 
-__all__ = ["SerialPort", "SerialPortOptions", "SerialPortEvent", "SerialPortParity"]
+__all__ = ["SerialPort", "SerialPortOptions", "SerialPortEvent", "SerialPortParity", "set_async_worker"]
 
 sys_platform = sys.platform
     

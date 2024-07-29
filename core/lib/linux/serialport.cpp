@@ -16,7 +16,7 @@
 
 #include <iostream>
 
-#define BUFFER_SIZE 256
+#define BUFFER_SIZE 1024
 
 using namespace async_pyserial;
 using namespace async_pyserial::internal;
@@ -137,10 +137,10 @@ void SerialPort::open() {
         throw common::SerialPortException("open serial port failure");
     }
 
-    event.events = EPOLLIN;
-    event.data.fd = serial_fd;
+    serial_evt.events = EPOLLIN;
+    serial_evt.data.fd = serial_fd;
 
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, serial_fd, &event) == -1) {
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, serial_fd, &serial_evt) == -1) {
         perror("epoll_ctl");
 
         ::close(notify_fd);
@@ -158,7 +158,7 @@ void SerialPort::open() {
         throw common::SerialPortException("open serial port failure");
     }
 
-    startAsyncRead();
+    startEpollWorker();
 
     _is_open = true;
 }
@@ -210,14 +210,12 @@ void SerialPort::configure(unsigned long baudRate, unsigned char byteSize, unsig
     }
 }
 
-void SerialPort::asyncReadThread() {
+void SerialPort::epollWorker() {
     struct epoll_event epoll_evts[EPOLL_MAX_EVENTS];
 
     char buffer[BUFFER_SIZE];
 
     while(running) {
-        
-
         int n = epoll_wait(epoll_fd, epoll_evts, EPOLL_MAX_EVENTS, -1);
 
         if(n == -1) {
@@ -229,6 +227,9 @@ void SerialPort::asyncReadThread() {
                 goto exit;
             }
         }
+
+        bool write_failure = false;
+        bool is_write_call = false;
 
         for(int i = 0; i < n; i++) {
             auto evt = epoll_evts[i];
@@ -251,32 +252,114 @@ void SerialPort::asyncReadThread() {
                 }
 
                 
-            }else if(evt.events & (EPOLLERR | EPOLLHUP)) {
+            } else if(!write_failure && evt.events & EPOLLOUT) {
+                std::unique_lock<std::mutex> lock(w_mutex);
+
+                while(w_queue.size() > 0) {
+                    is_write_call = true;
+
+                    auto& io_evt = w_queue.front();
+
+                    auto& data = io_evt.data;
+
+                    size_t bytes_to_write = data.size();
+
+                    while (io_evt.bytes_written < bytes_to_write) {
+                        ssize_t bytes_written = ::write(serial_fd, data.c_str() + io_evt.bytes_written, bytes_to_write - io_evt.bytes_written);
+
+                        if (bytes_written < 0) {
+                            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+                                // Retry write if it was interrupted by a signal
+                                // or when Resource temporarily unavailable occure
+                                break;
+                            } else {
+                                // write failure
+                                write_failure = true;
+
+                                break;
+                            }
+                        }
+                        
+                        io_evt.bytes_written += bytes_written;
+                    }
+
+                    auto& callback = io_evt.callback;
+
+                    // maybe use other thread to process this callback in future
+                    callback(common::SUCCESS);
+
+                    // pop evt when write complete
+                    w_queue.pop_front();
+                }
+            } else if(evt.events & (EPOLLERR | EPOLLHUP)) {
                 fprintf(stderr, "Epoll error on fd %d\n", evt.data.fd);
                 
                 goto exit;
             }
         }
+
+        if(is_write_call) {
+            std::unique_lock<std::mutex> lock(w_mutex);
+
+            if(write_failure) {
+                // all writes are failure
+                while(w_queue.size() > 0) {
+                    auto& io_evt = w_queue.front();
+
+                    auto& callback = io_evt.callback;
+
+                    callback(common::FAILURE);
+
+                    w_queue.pop_front();
+                }
+            }
+
+            if(w_queue.size() == 0) {
+                // w_queue is empty
+                // rm EPOLLOUT
+                serial_evt.events = EPOLLIN;
+
+                epoll_ctl(epoll_fd, EPOLL_CTL_MOD, serial_fd, &serial_evt);
+            }
+        }
+
+        
     }
 
     exit:
 
     running = false;
 
-    std::cout << "exit" << std::endl;
+    // clear w_queue
+
+    std::unique_lock<std::mutex> lock(w_mutex);
+
+    while(w_queue.size() > 0) {
+        auto& io_evt = w_queue.front();
+
+        auto& callback = io_evt.callback;
+
+        callback(common::FAILURE);
+
+        w_queue.pop_front();
+    }
+
+    serial_evt.events = EPOLLIN;
+
+    epoll_ctl(epoll_fd, EPOLL_CTL_MOD, serial_fd, &serial_evt);
 }
 
-void SerialPort::startAsyncRead() {
+void SerialPort::startEpollWorker() {
     if(running) {
         return;
     }
 
     running = true;
 
-    readThread = std::thread(&SerialPort::asyncReadThread, this);
+    readThread = std::thread(&SerialPort::epollWorker, this);
 }
 
-void SerialPort::stopAsyncRead() {
+void SerialPort::stopEpollWorker() {
     if(!running) {
         return;
     }
@@ -296,7 +379,7 @@ bool SerialPort::is_open() {
 }
 
 void SerialPort::close() {
-    stopAsyncRead();
+    stopEpollWorker();
 
     if(!_is_open) return;
 
@@ -325,29 +408,34 @@ void SerialPort::close() {
 }
 
 
-void SerialPort::write(const std::string& data) {
+void SerialPort::write(const std::string &data, const std::function<void(unsigned long)>& callback) {
     if (!is_open()) {
-        throw common::SerialPortException("Serial port is not open");
+        callback(common::NOT_OPEN);
+        return;
     }
 
-    ssize_t total_bytes_written = 0;
-    ssize_t bytes_to_write = data.size();
+    if(!running) {
+        // Ooops! serialport is open
+        // but epoll worker is not running
+        callback(common::FAILURE);
+        return;
+    }
 
-    while (total_bytes_written < bytes_to_write) {
-        ssize_t bytes_written = ::write(serial_fd, data.c_str() + total_bytes_written, bytes_to_write - total_bytes_written);
+    IOEvent io_evt;
 
-        if (bytes_written < 0) {
-            if (errno == EINTR) {
-                // Retry write if it was interrupted by a signal
-                continue;
-            } else {
-                std::cerr << "Error: " << strerror(errno) << std::endl;
+    io_evt.callback = callback;
+    io_evt.bytes_written = 0;
+    io_evt.data = data;
 
-                throw common::SerialPortException("Write to serial port failure");
-            }
-        }
-        
-        total_bytes_written += bytes_written;
+    std::unique_lock<std::mutex> lock(w_mutex);
+
+    w_queue.push_back(std::move(io_evt));
+
+    serial_evt.events = EPOLLIN | EPOLLOUT;
+
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, serial_fd, &serial_evt) == -1) {
+        callback(common::FAILURE);
+        return;
     }
 }
 

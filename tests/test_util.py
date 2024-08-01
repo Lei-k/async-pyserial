@@ -1,5 +1,5 @@
 
-from async_pyserial.async_pyserial_core import SerialPort
+from async_pyserial import SerialPort
 from async_pyserial.common import SerialPortEvent
 
 
@@ -17,7 +17,7 @@ def get_port_pair():
 
 def mock_receieve_data(serial: SerialPort):
     def on_receieved(data):
-        serial._SerialPort__read_buf = data
+        serial._read_buf = data
             
         serial.emit(SerialPortEvent.ON_DATA, data)
 

@@ -15,29 +15,29 @@ class SerialPort(SerialPortBase):
 
         from async_pyserial import async_pyserial_core
         
-        self.internal = async_pyserial_core.SerialPort(portName, self.internal_options)
+        self._internal = async_pyserial_core.SerialPort(portName, self.internal_options)
 
-        self.__is_open = False
+        self._is_open = False
         
-        self.__read_bufsize = options.read_bufsize
+        self._read_bufsize = options.read_bufsize
         
-        self.__read_buf = b''
+        self._read_buf = b''
         
-        self.__r_lock = RLock()
+        self._rlock = RLock()
             
         def on_receieved(data):
-            if self.__read_bufsize > 0:
-                with self.__r_lock:
-                    actual_size = min(len(data), max(self.__read_bufsize - len(self.__read_buf), 0))
+            if self._read_bufsize > 0:
+                with self._rlock:
+                    actual_size = min(len(data), max(self._read_bufsize - len(self._read_buf), 0))
                     
                     if actual_size > 0:
-                        self.__read_buf += data[:actual_size]
+                        self._read_buf += data[:actual_size]
             
             self.emit(SerialPortEvent.ON_DATA, data)
         
-        self.internal.set_data_callback(on_receieved)
+        self._internal.set_data_callback(on_receieved)
 
-    def __calculate_stt(self, data_size):
+    def _calculate_stt(self, data_size):
         """
         Calculate the Serial Transmission Time (STT).
         
@@ -75,18 +75,18 @@ class SerialPort(SerialPortBase):
             the read method will use asynchronous processing.
         """
         if backend.async_worker == 'gevent':
-            return self.__gevent_read(bufsize)
+            return self._gevent_read(bufsize)
         elif backend.async_worker == 'eventlet':
-            return self.__eventlet_read(bufsize)
+            return self._eventlet_read(bufsize)
         elif backend.async_worker == 'asyncio':
-            return self.__asyncio_read(bufsize)
+            return self._asyncio_read(bufsize)
         elif callback is not None:
-            self.__callback_read(bufsize, callback)
+            self._callback_read(bufsize, callback)
         else:
-            return self.__sync_read(bufsize)
+            return self._sync_read(bufsize)
         
-    def __callback_read(self, bufsize: int, callback: Callable):
-        if self.__read_bufsize <= 0:            
+    def _callback_read(self, bufsize: int, callback: Callable):
+        if self._read_bufsize <= 0:            
             def on_receieved(data):
                 self.off(SerialPortEvent.ON_DATA, on_receieved)
                 
@@ -100,15 +100,15 @@ class SerialPort(SerialPortBase):
             
             return
         
-        if self.__read_buf != b'':
+        if self._read_buf != b'':
             # some data have in internal read buf
             # return buf with max bufsize directly
-            with self.__r_lock:
-                actual_size = min(len(self.__read_buf), bufsize)
+            with self._rlock:
+                actual_size = min(len(self._read_buf), bufsize)
                 
-                buf = self.__read_buf[:actual_size]
+                buf = self._read_buf[:actual_size]
                 
-                self.__read_buf = self.__read_buf[actual_size:]
+                self._read_buf = self._read_buf[actual_size:]
                 
             callback(buf)
                 
@@ -117,30 +117,30 @@ class SerialPort(SerialPortBase):
         def on_receieved(_: bytes):
             self.off(SerialPortEvent.ON_DATA, on_receieved)
             
-            # read from __read_buf
-            actual_size = min(len(self.__read_buf), bufsize)
+            # read from _read_buf
+            actual_size = min(len(self._read_buf), bufsize)
 
-            print(f'size: {len(self.__read_buf)}')
+            print(f'size: {len(self._read_buf)}')
                 
-            buf = self.__read_buf[:actual_size]
+            buf = self._read_buf[:actual_size]
             
-            self.__read_buf = self.__read_buf[actual_size:]
+            self._read_buf = self._read_buf[actual_size:]
             
             callback(buf)
             
         self.on(SerialPortEvent.ON_DATA, on_receieved)
         
-    def __sync_read(self, bufsize: int):
+    def _sync_read(self, bufsize: int):
         future = Future()
         
         def on_receieved(data):
             future.set_result(data)
         
-        self.__callback_read(bufsize, on_receieved)
+        self._callback_read(bufsize, on_receieved)
         
         return future.result()
         
-    def __gevent_read(self, bufsize: int):
+    def _gevent_read(self, bufsize: int):
         
         import gevent
         from gevent.event import AsyncResult
@@ -150,10 +150,10 @@ class SerialPort(SerialPortBase):
         def on_receieved(data):
             ar.set(data)
             
-        self.__callback_read(bufsize, on_receieved)
+        self._callback_read(bufsize, on_receieved)
             
         # calc stt for read bufsize
-        stt = self.__calculate_stt(bufsize)
+        stt = self._calculate_stt(bufsize)
         wt = stt / 20.0
         
         wt = min(wt, 0.05)  # max wait time is 0.05s
@@ -166,7 +166,7 @@ class SerialPort(SerialPortBase):
         
         return buf
     
-    def __eventlet_read(self, bufsize: int):
+    def _eventlet_read(self, bufsize: int):
         
         import eventlet
         from eventlet.event import Event
@@ -176,10 +176,10 @@ class SerialPort(SerialPortBase):
         def on_receieved(data):
             evt.send(data)
             
-        self.__callback_read(bufsize, on_receieved)
+        self._callback_read(bufsize, on_receieved)
             
         # calc stt for read bufsize
-        stt = self.__calculate_stt(bufsize)
+        stt = self._calculate_stt(bufsize)
         wt = stt / 20.0
         
         wt = min(wt, 0.05)  # max wait time is 0.05s
@@ -191,7 +191,7 @@ class SerialPort(SerialPortBase):
         
         return buf
     
-    def __asyncio_read(self, bufsize: int):
+    def _asyncio_read(self, bufsize: int):
         import asyncio
 
         loop = backend.async_loop
@@ -204,7 +204,7 @@ class SerialPort(SerialPortBase):
         def on_receieved(data):
             loop.call_soon_threadsafe(future.set_result, data)
         
-        self.__callback_read(bufsize, on_receieved)
+        self._callback_read(bufsize, on_receieved)
         
         return future
         
@@ -239,9 +239,9 @@ class SerialPort(SerialPortBase):
             def cb(err):
                 ar.set(err)
 
-            self.internal.write(data, cb)
+            self._internal.write(data, cb)
 
-            stt = self.__calculate_stt(len(data))
+            stt = self._calculate_stt(len(data))
             wt = stt / 20.0
 
             if wt > 0.05:
@@ -275,9 +275,9 @@ class SerialPort(SerialPortBase):
                 
                 evt.send(err)
 
-            self.internal.write(data, cb)
+            self._internal.write(data, cb)
 
-            stt = self.__calculate_stt(len(data))
+            stt = self._calculate_stt(len(data))
             wt = stt / 20.0
 
             if wt > 0.05:
@@ -307,18 +307,18 @@ class SerialPort(SerialPortBase):
                 else:
                     loop.call_soon_threadsafe(future.set_exception, SerialPortError('write failure'))
             
-            self.internal.write(data, cb)
+            self._internal.write(data, cb)
 
             return future
         elif callback is not None:
-            self.internal.write(data, callback)
+            self._internal.write(data, callback)
         else:
             future = Future()
 
             def cb(err):
                 future.set_result(err)
 
-            self.internal.write(data, cb)
+            self._internal.write(data, cb)
 
             err = future.result()
 
@@ -326,12 +326,12 @@ class SerialPort(SerialPortBase):
                 raise SerialPortError('write failure')
         
     def open(self):
-        self.internal.open()
-        self.__is_open = True
+        self._internal.open()
+        self._is_open = True
         
     def close(self):
-        self.internal.close()
-        self.__is_open = False
+        self._internal.close()
+        self._is_open = False
 
     def is_open(self):
-        return self.__is_open
+        return self._is_open

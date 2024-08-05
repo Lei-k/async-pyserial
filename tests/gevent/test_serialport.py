@@ -1,3 +1,4 @@
+import threading
 import pytest
 import subprocess
 import time
@@ -88,10 +89,15 @@ def test_serialport_read(virtual_serial_ports):
 
     test_data = b'Hello, world!'
 
-    def run():
-
+    def write():
         with open(port2, 'wb') as f:
             f.write(test_data)
+
+    t = threading.Timer(0.3, write)
+
+    t.start()
+
+    def run():
 
         buf = serial.read()
 

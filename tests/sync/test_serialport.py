@@ -1,7 +1,7 @@
 import pytest
 import subprocess
 import time
-from async_pyserial import SerialPort, SerialPortOptions, set_async_worker
+from async_pyserial import SerialPort, SerialPortOptions, set_async_worker, SerialPortError
 import os
 
 from tests.test_util import get_port_pair
@@ -70,6 +70,15 @@ def test_serialport_write(virtual_serial_ports):
     
     serial_port.close()
 
+def test_serialport_write_error(virtual_serial_ports):
+    port1, port2 = virtual_serial_ports
+    options = SerialPortOptions()
+    serial_port = SerialPort(port1, options)
+    test_data = b'Hello, Serial Port!'
+
+    with pytest.raises(SerialPortError):
+        serial_port.write(test_data)
+
 
 def test_serialport_read(virtual_serial_ports):
     port1, port2 = virtual_serial_ports
@@ -82,6 +91,28 @@ def test_serialport_read(virtual_serial_ports):
 
     with open(port2, 'wb') as f:
         f.write(test_data)
+
+    buf = serial.read()
+
+    assert buf == test_data
+
+    serial.close()
+
+def test_serialport_read_without_buf(virtual_serial_ports):
+    port1, port2 = virtual_serial_ports
+    options = SerialPortOptions()
+    serial = SerialPort(port1, options)
+    serial.open()
+
+    test_data = b'Hello, Serial!'
+
+    def write():
+        with open(port2, 'wb') as f:
+            f.write(test_data)
+
+    t = threading.Timer(0.5, write)
+
+    t.start()
 
     buf = serial.read()
 

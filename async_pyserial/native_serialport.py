@@ -296,7 +296,6 @@ class SerialPort(SerialPortBase):
         evt = Event()
 
         def cb(err):
-            
             evt.send(err)
 
         self._callback_write(data, cb)
@@ -328,11 +327,11 @@ class SerialPort(SerialPortBase):
 
         def cb(err):
             if err is not None:
-                loop.call_soon_threadsafe(future.set_result, None)
-            else:
                 loop.call_soon_threadsafe(future.set_exception, err)
+            else:
+                loop.call_soon_threadsafe(future.set_result, None)
         
-        self._internal.write(data, cb)
+        self._callback_write(data, cb)
 
         return future
     
@@ -340,14 +339,15 @@ class SerialPort(SerialPortBase):
         future = Future()
 
         def cb(err):
-            future.set_result(err)
+            if err is not None:
+                future.set_exception(err)
+                return
+            
+            future.set_result(None)
 
-        self._internal.write(data, cb)
+        self._callback_write(data, cb)
 
-        err = future.result()
-
-        if err is not None:
-            raise err
+        future.result()
         
     def open(self):
         self._internal.open()

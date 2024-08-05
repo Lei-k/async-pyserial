@@ -8,7 +8,8 @@ __version__ = '0.2.2'
 
 VERSION = __version__
 
-__all__ = ["SerialPort", "SerialPortOptions", "SerialPortEvent", "SerialPortParity", "set_async_worker"]
+__all__ = ["SerialPort", "SerialPortOptions", "SerialPortEvent", 
+           "SerialPortParity", "set_async_worker", "SerialPortError"]
 
 sys_platform = sys.platform
     

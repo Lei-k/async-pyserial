@@ -231,99 +231,123 @@ class SerialPort(SerialPortBase):
             SerialPortError: If the write operation fails.
         """
         if backend.async_worker == 'gevent':
-            import gevent
-            from gevent.event import AsyncResult
-
-            ar = AsyncResult()
-
-            def cb(err):
-                ar.set(err)
-
-            self._internal.write(data, cb)
-
-            stt = self._calculate_stt(len(data))
-            wt = stt / 20.0
-
-            if wt > 0.05:
-                # max wait time is 0.05s
-                wt = 0.05
-
-            while not ar.ready():
-                # maybe can use ar.wait(timeout=0.01)
-                # but it look like unsable
-                # ar.wait(timeout=0.01) test history
-                # Invalid switch into <Greenlet at 0x103661ee0: run>: 
-                # got <gevent._gevent_cevent.AsyncResult object at 0x103f6a570> 
-                # (expected <gevent._gevent_c_waiter.Waiter object at 0x103ffddf0>; 
-                # waiting on <Hub '' at 0x103fbb560 select default pending=0 ref=1 thread_ident=0x1e57d2080> 
-                # with <timer at 0x103bd6d40 native=0x103bd6d80 active callback=<bound method Waiter.switch 
-                # of <gevent._gevent_c_waiter.Waiter object at 0x103ffddf0>> args=(<gevent._gevent_c_waiter.Waiter 
-                # object at 0x103ffddf0>,)>)
-                gevent.sleep(wt)
-
-            err = ar.get()
-
-            if err != 0:
-                raise SerialPortError('write failure')
+            self._gevent_write(data)
         elif backend.async_worker == 'eventlet':
-            import eventlet
-            from eventlet.event import Event
-
-            evt = Event()
-
-            def cb(err):
-                
-                evt.send(err)
-
-            self._internal.write(data, cb)
-
-            stt = self._calculate_stt(len(data))
-            wt = stt / 20.0
-
-            if wt > 0.05:
-                # max wait time is 0.05s
-                wt = 0.05
-
-            while not evt.ready():
-                eventlet.sleep(wt)
-
-            err = evt.wait()
-
-            if err != 0:
-                raise SerialPortError('write failure')
+            self._eventlet_write(data)
         elif backend.async_worker == 'asyncio':
-            import asyncio
-
-            loop = backend.async_loop
-
-            if loop is None:
-                loop = asyncio.get_running_loop()
-
-            future = loop.create_future()
-
-            def cb(err):
-                if err == 0:
-                    loop.call_soon_threadsafe(future.set_result, None)
-                else:
-                    loop.call_soon_threadsafe(future.set_exception, SerialPortError('write failure'))
-            
-            self._internal.write(data, cb)
-
-            return future
+            return self._asyncio_write(data)
         elif callback is not None:
-            self._internal.write(data, callback)
+            self._callback_write(data, callback)
         else:
-            future = Future()
-
-            def cb(err):
-                future.set_result(err)
-
-            self._internal.write(data, cb)
-
-            err = future.result()
-
+            self._sync_write(data)
+            
+    def _callback_write(self, data: bytes, callback: Callable):
+        def cb(err):
             if err != 0:
-                raise SerialPortError('write failure')
+                ex = SerialPortError(f'Write Error: {err}')
+                
+                callback(ex)
+                return
+            
+            callback(None)
+            
+        self._internal.write(data, cb)
+        
+    def _gevent_write(self, data: bytes):
+        import gevent
+        from gevent.event import AsyncResult
+
+        ar = AsyncResult()
+
+        def cb(err):
+            ar.set(err)
+
+        self._callback_write(data, cb)
+
+        stt = self._calculate_stt(len(data))
+        wt = stt / 20.0
+
+        if wt > 0.05:
+            # max wait time is 0.05s
+            wt = 0.05
+
+        while not ar.ready():
+            # maybe can use ar.wait(timeout=0.01)
+            # but it look like unsable
+            # ar.wait(timeout=0.01) test history
+            # Invalid switch into <Greenlet at 0x103661ee0: run>: 
+            # got <gevent._gevent_cevent.AsyncResult object at 0x103f6a570> 
+            # (expected <gevent._gevent_c_waiter.Waiter object at 0x103ffddf0>; 
+            # waiting on <Hub '' at 0x103fbb560 select default pending=0 ref=1 thread_ident=0x1e57d2080> 
+            # with <timer at 0x103bd6d40 native=0x103bd6d80 active callback=<bound method Waiter.switch 
+            # of <gevent._gevent_c_waiter.Waiter object at 0x103ffddf0>> args=(<gevent._gevent_c_waiter.Waiter 
+            # object at 0x103ffddf0>,)>)
+            gevent.sleep(wt)
+
+        err = ar.get()
+
+        if err is not None:
+            raise err
+        
+    def _eventlet_write(self, data: bytes):
+        import eventlet
+        from eventlet.event import Event
+
+        evt = Event()
+
+        def cb(err):
+            
+            evt.send(err)
+
+        self._callback_write(data, cb)
+
+        stt = self._calculate_stt(len(data))
+        wt = stt / 20.0
+
+        if wt > 0.05:
+            # max wait time is 0.05s
+            wt = 0.05
+
+        while not evt.ready():
+            eventlet.sleep(wt)
+
+        err = evt.wait()
+
+        if err is not None:
+            raise err
+        
+    def _asyncio_write(self, data: bytes):
+        import asyncio
+
+        loop = backend.async_loop
+
+        if loop is None:
+            loop = asyncio.get_running_loop()
+
+        future = loop.create_future()
+
+        def cb(err):
+            if err is not None:
+                loop.call_soon_threadsafe(future.set_result, None)
+            else:
+                loop.call_soon_threadsafe(future.set_exception, err)
+        
+        self._internal.write(data, cb)
+
+        return future
+    
+    def _sync_write(self, data: bytes):
+        future = Future()
+
+        def cb(err):
+            future.set_result(err)
+
+        self._internal.write(data, cb)
+
+        err = future.result()
+
+        if err is not None:
+            raise err
         
     def open(self):
         self._internal.open()

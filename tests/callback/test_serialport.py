@@ -64,7 +64,20 @@ def test_serialport_write(virtual_serial_ports):
     serial_port = SerialPort(port1, options)
     serial_port.open()
     test_data = b'Hello, world!'
-    serial_port.write(test_data)
+    
+    future = Future()
+
+    def on_complete(err):
+        if err is not None:
+            future.set_exception(err)
+            return
+        
+        future.set_result(None)
+    
+    serial_port.write(test_data, on_complete)
+    
+    # wait for write
+    future.result()
 
     with open(port2, 'rb') as f:
         written_data = f.read(len(test_data))

@@ -22,7 +22,7 @@ jobs:
         sudo apt-get update -y
         sudo apt-get install socat -y
         python -m pip install --upgrade pip
-        pip install poetry
+        pip install poetry poetry-plugin-export
         poetry export -f requirements.txt --output requirements.txt --dev --without-hashes
         pip install -r requirements.txt
     - name: Build Extensions

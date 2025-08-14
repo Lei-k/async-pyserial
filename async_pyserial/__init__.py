@@ -4,7 +4,7 @@ from async_pyserial.common import *
 
 from async_pyserial.backend import set_async_worker
 
-__version__ = '0.2.3'
+__version__ = '0.2.4'
 
 VERSION = __version__
 

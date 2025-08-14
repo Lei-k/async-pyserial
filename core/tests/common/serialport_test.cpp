@@ -1,3 +1,8 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <any>
+
 #ifdef LINUX
 
 #include <linux/serialport.h>
@@ -23,7 +28,7 @@ int main() {
     options.read_timeout = 50;
     options.write_timeout = 50;
 
-    internal::SerialPort serial(L"/dev/pts/8", options);
+    internal::SerialPort serial(L"COM30", options);
 
     serial.on(internal::SerialPortEvent::ON_DATA, [](const std::vector<std::any>& args) {
         auto& data = std::any_cast<const std::vector<char>&>(args[0]);
@@ -38,7 +43,9 @@ int main() {
         std::getline(std::cin, input);
         if (input == "exit") break;
 
-        serial.write(input);
+        serial.write(input, [](unsigned long bytesWritten) {
+            std::cout << "Bytes written: " << bytesWritten << std::endl;
+        });
     }
 
     return 0;

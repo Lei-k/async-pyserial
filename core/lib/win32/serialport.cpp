@@ -29,8 +29,14 @@ struct CustomOverlapped : public OVERLAPPED {
 };
 
 void SerialPort::open() {
+    std::wstring portNameWithPrefix = portName;
+
+    if(portNameWithPrefix.rfind(L"\\\\.\\") != 0) {
+        portNameWithPrefix = L"\\\\.\\" + portNameWithPrefix;
+    }
+
     hSerial = CreateFileW(
-        portName.c_str(),
+        portNameWithPrefix.c_str(),
         GENERIC_READ | GENERIC_WRITE,
         0,
         0,
@@ -277,7 +283,7 @@ int main() {
     options.read_timeout = 50;
     options.write_timeout = 50;
 
-    SerialPort serial(L"COM2", options);
+    SerialPort serial(L"COM30", options);
 
     serial.on(SerialPortEvent::ON_DATA, [](const std::vector<std::any>& args) {
         auto& data = std::any_cast<const std::vector<char>&>(args[0]);
